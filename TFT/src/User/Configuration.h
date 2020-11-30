@@ -14,7 +14,7 @@
  * ST7920_SPI // Marlin Mode
  * SERIAL_TSC // Touch Mode
  */
-#define DEFAULT_LCD_MODE SERIAL_TSC
+#define DEFAULT_LCD_MODE ST7920_SPI
 
 /**
  * Default Startup Knob LED Color (TFT35 E3)
@@ -25,7 +25,7 @@
  *
  * Default value is: 1 for LED_OFF
 */
-#define STARTUP_KNOB_LED_COLOR 0         // LED_OFF
+#define STARTUP_KNOB_LED_COLOR 3         // LED_ORANGE
 #define KEEP_KNOB_LED_COLOR_MARLIN_MODE  // Keeps the LED state in Marlin Mode
 
 /**
@@ -63,7 +63,7 @@
  *         12: DARKBLUE,  13: DARKGREEN,  14: GRAY,   15: DARKGRAY
  */
 #define MARLIN_BKCOLOR 1
-#define MARLIN_FNCOLOR 0
+#define MARLIN_FNCOLOR 8
 
 /**
  * Text displayed at the top of the TFT in Marlin Mode.
@@ -73,14 +73,14 @@
 /**
  * show banner text at the top of the TFT in Marlin Mode.
  */
-#define MARLIN_SHOW_BANNER  true //to enabled: true | to disabled: false
+#define MARLIN_SHOW_BANNER  false //to enabled: true | to disabled: false
 /**
  * Run Marlin Mode in Fullscreen
  *
  * Options:  0: Disabled. RECOMMENDED FOR TFT24
  *           1: Enabled Marlin Fullscreen mode.
  */
-#define DEFAULT_ST7920_FULLSCREEN_MODE 0 // 0: Disabled. RECOMMENDED FOR TFT24
+#define DEFAULT_ST7920_FULLSCREEN_MODE 1 // 0: Disabled. RECOMMENDED FOR TFT24
 
 /**
  * Keep Serial always On (ONLY SUPPORTED ON TFT24 V1.1, TFT35 V3.0, AND TFT28 V3.0)
@@ -105,7 +105,7 @@
  *
  * :[2400, 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000]
  */
-#define BAUDRATE 115200
+#define BAUDRATE 250000
 
 /**
  * Default Primary Language (for Touch-Mode only)
@@ -182,10 +182,10 @@
 #define MIXING_EXTRUDER 0 // set default 0, for mixing_extruder 1 (this option turns off autodetection of the number of extruders)
 
 #define PREHEAT_LABELS   {"PLA", "PETG", "ABS", "WOOD", "TPU", "NYLON"}
-#define PREHEAT_HOTEND   {200,   240,    230,   170,    220,   250}
-#define PREHEAT_BED      {60,    70,     90,    50,     50,    90}
+#define PREHEAT_HOTEND   {195,   240,    230,   170,    220,   250}
+#define PREHEAT_BED      {60,    75,     90,    50,     50,    90}
 
-#define HEAT_MAX_TEMP    {275,       275,       275,       275,       275,       275,       150,    60}   //max temperature can be set
+#define HEAT_MAX_TEMP    {275,       275,       275,       275,       275,       275,       110,    60}   //max temperature can be set
 #define HEAT_SIGN_ID     {"T0:",     "T1:",     "T2:",     "T3:",     "T4:",     "T5:",     "B:",   "C:"}
 #define HEAT_DISPLAY_ID  {"T0",      "T1",      "T2",      "T3",      "T4",      "T5",      "Bed",  "Chamber"}
 #define HEAT_CMD         {"M104 T0", "M104 T1", "M104 T2", "M104 T3", "M104 T4", "M104 T5", "M140", "M141"};
