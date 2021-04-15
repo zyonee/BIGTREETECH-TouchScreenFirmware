@@ -35,20 +35,22 @@ void infoSettingsReset(void)
   infoSettings.list_button_color      = lcd_colors[LISTVIEW_ICON_COLOR];
   infoSettings.mesh_min_color         = lcd_colors[MESH_MIN_COLOR];
   infoSettings.mesh_max_color         = lcd_colors[MESH_MAX_COLOR];
+  infoSettings.terminal_color_scheme  = TERMINAL_COLOR_SCHEME;
 
   infoSettings.rotate_ui              = DISABLED;
   infoSettings.terminalACK            = DISABLED;
   infoSettings.persistent_info        = ENABLED;
   infoSettings.file_listmode          = ENABLED;
   infoSettings.ack_notification       = ACK_NOTIFICATION_STYLE;
+  infoSettings.emulate_m600           = EMULATE_M600;
 
 // Marlin Mode Settings
   infoSettings.mode                   = DEFAULT_LCD_MODE;
   infoSettings.serial_alwaysOn        = SERIAL_ALWAYS_ON;
   infoSettings.marlin_mode_bg_color   = lcd_colors[MARLIN_BKCOLOR];
   infoSettings.marlin_mode_font_color = lcd_colors[MARLIN_FNCOLOR];
-  infoSettings.marlin_mode_showtitle  = MARLIN_SHOW_BANNER;
   infoSettings.marlin_mode_fullscreen = MARLIN_MODE_FULLSCREEN;
+  infoSettings.marlin_mode_showtitle  = MARLIN_SHOW_BANNER;
   infoSettings.marlin_type            = LCD12864;
 
 // RRF Mode Settings
@@ -82,6 +84,10 @@ void infoSettingsReset(void)
 
   infoSettings.move_speed             = 1;  // index on infoSettings.axis_speed, infoSettings.ext_speed
 
+  infoSettings.xy_offset_probing      = ENABLED;
+  infoSettings.z_raise_probing        = PROBING_Z_RAISE;
+  infoSettings.z_steppers_alignment   = DISABLED;
+
 // Power Supply Settings
   infoSettings.auto_off               = DISABLED;
   infoSettings.ps_active_high         = PS_ON_ACTIVE_HIGH;
@@ -110,8 +116,6 @@ void infoSettingsReset(void)
   infoSettings.lcd_brightness         = DEFAULT_LCD_BRIGHTNESS;
   infoSettings.lcd_idle_brightness    = DEFAULT_LCD_IDLE_BRIGHTNESS;
   infoSettings.lcd_idle_timer         = DEFAULT_LCD_IDLE_TIMER;
-  infoSettings.xy_offset_probing      = ENABLED;
-  infoSettings.z_steppers_alignment   = DISABLED;
 
 // Start, End & Cancel G-codes
   infoSettings.send_start_gcode       = DISABLED;
@@ -135,6 +139,7 @@ void infoSettingsReset(void)
     infoSettings.machine_size_min[i]  = default_size_min[i];
     infoSettings.machine_size_max[i]  = default_size_max[i];
   }
+  infoSettings.leveling_invert_y_axis = DISABLED;
 
   for (int i = 0; i < FEEDRATE_COUNT - 1 ; i++)  //xy, z
   {
@@ -235,6 +240,11 @@ void setupMachine(void)
     infoMachineSettings.long_filename_support = DISABLED;
   }
   mustStoreCmd("M503 S0\n");
+
+  if (infoMachineSettings.firmwareType == FW_REPRAPFW)
+  {
+    mustStoreCmd("M555 P2\n");  //  Set RRF compatibility behaves similar to 2: Marlin
+  }
 }
 
 float flashUsedPercentage(void)

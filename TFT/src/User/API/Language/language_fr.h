@@ -10,9 +10,10 @@
     #define STRING_PERSISTENT_INFO        "Temp. toujours affichées"
     #define STRING_FILE_LIST_MODE         "Fichiers en mode liste"
     #define STRING_ACK_NOTIFICATION       "Style de notification ACK"
+    #define STRING_EMULATE_M600           "Emulate M600"
     #define STRING_SERIAL_ALWAYS_ON       "Serial toujours actif"
-    #define STRING_MARLIN_SHOW_TITLE      "Titre en Mode Marlin"
     #define STRING_MARLIN_FULLSCREEN      "Mode Marlin plein écran"
+    #define STRING_MARLIN_SHOW_TITLE      "Titre en Mode Marlin"
     #define STRING_MARLIN_TYPE            "Type du Mode Marlin"
     #define STRING_MOVE_SPEED             "Vitesse de déplacement (X Y Z)"
     #define STRING_AUTO_LOAD_LEVELING     "Auto-Sauvegarde Leveling"
@@ -272,6 +273,7 @@
     #define STRING_ABL_SLOT3              "Slot 3"
     #define STRING_ABL_SLOT_EEPROM        "Se souvenir de l'emplacement\nau prochain redémarrage ?\n(Sauvegarde EEPROM)"
     #define STRING_ABL_Z                  "Z Fade"
+    #define STRING_LEVEL_CORNER           "L corner"
     #define STRING_P_OFFSET               "Z Offset"
     #define STRING_H_OFFSET               "H Offset"
     #define STRING_DISTANCE               "Distance"
@@ -344,5 +346,7 @@
     #define STRING_EXT_TEMPLOW            "La température de la buse est inférieure\nà la température minimale (%d℃)."
     #define STRING_HEAT_HOTEND            "Chauffer la buse à %d℃ ?"
     #define STRING_Z_ALIGN                "Z Align"
+    #define STRING_MACROS                 "Macros"
+    #define STRING_MESH_VALID             "Mesh Validation"
 
 #endif

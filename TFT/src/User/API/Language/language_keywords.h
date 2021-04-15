@@ -17,9 +17,10 @@ extern "C" {
 #define LANG_KEY_PERSISTENT_INFO              "label_persistent_info:"
 #define LANG_KEY_FILE_LIST_MODE               "label_file_list_mode:"
 #define LANG_KEY_ACK_NOTIFICATION             "label_ack_notification:"
+#define LANG_KEY_EMULATE_M600                 "label_emulate_m600:"
 #define LANG_KEY_SERIAL_ALWAYS_ON             "label_serial_always_on:"
-#define LANG_KEY_MARLIN_SHOW_TITLE            "label_marlin_show_title:"
 #define LANG_KEY_MARLIN_FULLSCREEN            "label_marlin_fullscreen:"
+#define LANG_KEY_MARLIN_SHOW_TITLE            "label_marlin_show_title:"
 #define LANG_KEY_MARLIN_TYPE                  "label_marlin_type:"
 #define LANG_KEY_MOVE_SPEED                   "label_move_speed:"
 #define LANG_KEY_AUTO_LOAD_LEVELING           "label_auto_load_leveling:"
@@ -113,7 +114,6 @@ extern "C" {
 #define LANG_KEY_HALF                         "label_half:"
 #define LANG_KEY_FULL                         "label_full:"
 #define LANG_KEY_CUSTOM                       "label_custom:"
-#define LANG_KEY_MACROS                       "label_macros:"
 #define LANG_KEY_CLEAR                        "label_clear:"
 #define LANG_KEY_DEFAULT                      "label_default:"
 
@@ -280,6 +280,7 @@ extern "C" {
 #define LANG_KEY_ABL_SLOT3                    "label_abl_slot3:"
 #define LANG_KEY_ABL_SLOT_EEPROM              "label_abl_slot_eeprom:"
 #define LANG_KEY_ABL_Z                        "label_abl_z:"
+#define LANG_KEY_LEVEL_CORNER                 "label_level_corner:"
 #define LANG_KEY_P_OFFSET                     "label_p_offset:"
 #define LANG_KEY_H_OFFSET                     "label_h_offset:"
 #define LANG_KEY_DISTANCE                     "label_distance:"
@@ -352,6 +353,8 @@ extern "C" {
 #define LANG_KEY_EXT_TEMPLOW                  "label_ext_templow:"
 #define LANG_KEY_HEAT_HOTEND                  "label_heat_hotend:"
 #define LANG_KEY_Z_ALIGN                      "label_z_align:"
+#define LANG_KEY_MACROS                       "label_macros:"
+#define LANG_KEY_MESH_VALID                   "label_mesh_valid:"
 
 #ifdef __cplusplus
 }

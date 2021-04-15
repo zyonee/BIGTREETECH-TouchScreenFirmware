@@ -29,10 +29,10 @@ typedef enum
 // Config version support
 // change if new elements/keywords are added/removed/changed in the configuration.h Format YYYYMMDD
 // this number should match CONFIG_VERSION in configuration.h
-#define CONFIG_SUPPPORT 20210217
+#define CONFIG_SUPPPORT 20210321
 
 #define FONT_FLASH_SIGN       20200908  //(YYYYMMDD) change if fonts require updating
-#define CONFIG_FLASH_SIGN     20210217  //(YYYYMMDD) change if any keyword(s) in config.ini is added or removed
+#define CONFIG_FLASH_SIGN     20210409  //(YYYYMMDD) change if any keyword(s) in config.ini is added or removed
 #define LANGUAGE_FLASH_SIGN   20210217  //(YYYYMMDD) change if any keyword(s) in language pack is added or removed
 #define ICON_FLASH_SIGN       20210217  //(YYYYMMDD) change if any icon(s) is added or removed
 
@@ -96,21 +96,24 @@ typedef struct
   uint16_t list_button_color;
   uint16_t mesh_min_color;
   uint16_t mesh_max_color;
+  uint8_t  terminal_color_scheme;
 
   uint8_t rotate_ui;
   uint8_t terminalACK;
   uint8_t invert_axis[AXIS_NUM];
+  uint8_t leveling_invert_y_axis;
   uint8_t persistent_info;
   uint8_t file_listmode;
   uint8_t ack_notification;
+  uint8_t emulate_m600;
 
   // Marlin Mode Settings
   uint8_t  mode;
   uint8_t  serial_alwaysOn;
   uint16_t marlin_mode_bg_color;
   uint16_t marlin_mode_font_color;
-  uint8_t  marlin_mode_showtitle;
   uint8_t  marlin_mode_fullscreen;
+  uint8_t  marlin_mode_showtitle;
   uint8_t  marlin_type;
 
   // rrf mode settings
@@ -146,11 +149,16 @@ typedef struct
   uint8_t  level_edge;
   float    level_z_pos;
   float    level_z_raise;
+
+  uint8_t  move_speed;  // index on infoSettings.axis_speed, infoSettings.ext_speed
+
+  uint8_t  xy_offset_probing;
+  float    z_raise_probing;
+  uint8_t  z_steppers_alignment;
+
   uint16_t level_feedrate[FEEDRATE_COUNT - 1];  // XY, Z
   uint16_t preheat_temp[PREHEAT_COUNT];
   uint16_t preheat_bed[PREHEAT_COUNT];
-
-  uint8_t  move_speed;  // index on infoSettings.axis_speed, infoSettings.ext_speed
 
   // Power Supply Settings
   uint8_t  auto_off;
@@ -180,8 +188,6 @@ typedef struct
   uint8_t  lcd_brightness;
   uint8_t  lcd_idle_brightness;
   uint8_t  lcd_idle_timer;
-  uint8_t  xy_offset_probing;
-  uint8_t  z_steppers_alignment;
 
   // Start, End & Cancel Gcode Commands
   uint8_t  send_start_gcode;
@@ -214,11 +220,11 @@ typedef struct
  */
 typedef enum
 {
-  BL_DISABLED = DISABLED, // Bed Leveling Diabled
-  BL_ABL,  // Auto Bed Leveling (ABL)
-  BL_BBL,  // Bilinear Bed Leveling (BBL)
-  BL_UBL,  // Unified Bed Leveling (UBL)
-  BL_MBL,  // Mesh Bed Leveling (MBL)
+  BL_DISABLED = DISABLED,  // Bed Leveling Diabled
+  BL_ABL,                  // Auto Bed Leveling (ABL)
+  BL_BBL,                  // Bilinear Bed Leveling (BBL)
+  BL_UBL,                  // Unified Bed Leveling (UBL)
+  BL_MBL,                  // Mesh Bed Leveling (MBL)
 } BL_TYPE;
 
 /**
@@ -230,6 +236,7 @@ typedef enum
   FW_MARLIN,
   FW_REPRAPFW,
   FW_KLIPPER,
+  FW_SMOOTHIEWARE,
   FW_UNKNOWN,
 } FW_TYPE;
 

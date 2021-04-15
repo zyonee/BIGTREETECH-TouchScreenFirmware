@@ -1,6 +1,6 @@
 #ifndef _CONFIGURATION_H_
 #define _CONFIGURATION_H_
-#define CONFIG_VERSION 20210217
+#define CONFIG_VERSION 20210321
 
 //===========================================================================
 //============================= General Settings ============================
@@ -194,9 +194,13 @@
 #define Y_MAX_POS 208
 #define Z_MAX_POS 300
 
-// Is this a Delta printer
-#define IS_DELTA            false
-#define DELTA_MBL_Z_DROP_MM 50.0f  // MBL Drop 50mm first after home avoid crashing into the top of the towers.
+/**
+ * Raised Z height for probing
+ * Z height to raise / drop after homing (G28) before starting to probe a point.
+ *
+ * WARNING: It MUST be negative (e.g. -50mm) for a Delta printer to avoid crashing into the top of the tower.
+ */
+#define PROBING_Z_RAISE 20.0f
 
 // Pause Settings
 #define NOZZLE_PAUSE_RETRACT_LENGTH               15  // (mm)
@@ -277,8 +281,8 @@
 
 // Mesh Leveling Max Grid points
 // Set the maximum number of grid points per dimension.
-#define MESH_GRID_MAX_POINTS_X 10  // (Minimum 1, Maximum 15)
-#define MESH_GRID_MAX_POINTS_Y 10  // (Minimum 1, Maximum 15)
+#define MESH_GRID_MAX_POINTS_X 15  // (Minimum 1, Maximum 15)
+#define MESH_GRID_MAX_POINTS_Y 15  // (Minimum 1, Maximum 15)
 
 /**
  * Auto save/load Bed Leveling data
@@ -295,11 +299,19 @@
 #define PID_PROCESS_TIMEOUT (15 * 60000)  // (MilliSeconds, 1 minute = 60000 MilliSeconds)
 
 /**
- * M600, M601 ; pause print
+ * M600 ; emulate M600
+ * The TFT intercepts the M600 gcode (filament change) and emulates the logic instead of demanding it to Marlin firmware.
+ *
+ * NOTE: Enable it, in case Marlin firmware does not properly support M600 on the mainboard.
+ */
+#define EMULATE_M600 true  // To enabled: true | To disabled: false (Default: true)
+
+/**
+ * M601 ; pause print
  * PrusaSlicer can add M601 on certain height.
  * Acts here like manual pause.
  */
-#define NOZZLE_PAUSE_M600_M601
+#define NOZZLE_PAUSE_M601
 
 /**
  * M701, M702 ; Marlin filament load unload gcodes support
@@ -332,7 +344,7 @@
 /**
  * Quick EEPROM Menu
  * Enable EEPROM menu (save/load/reset buttons) in Settings > Machine Menu.
-
+ *
  * NOTE: If disabled, EEPROM operations can also be accessed in the (settings > machine > parameters) menu.
  */
 #define QUICK_EEPROM_BUTTON
@@ -428,17 +440,29 @@
 
 // Terminal Keyboard / Numpad theme
 // Uncomment to enable Material theme for keyboard and Numpad
-//#define KEYBOARD_MATERIAL_THEME // Default: disabled
+#define KEYBOARD_MATERIAL_THEME // Default: disabled
 
 /**
  * Color scheme for the Terminal Keyboard / Numpad
  *
  * Options: [0: Default, 1: Invert, 2: High-Contrast]
- *  Default: The keyboard follows system background and border colors.
- *  Invert: The keyboard is drawn with background swapped with border colors.
+ *  Default: The keyboard follows system background and border colors. (Material Dark
+ *           if KEYBOARD_MATERIAL_THEME is enabled).
+ *  Invert: The keyboard is drawn with background swapped with border colors. (Material
+ *          Light if KEYBOARD_MATERIAL_THEME is enabled).
  *  High-Contrast: Use white and black colors for high contrast.
  */
 #define KEYBOARD_COLOR_LAYOUT 0  // Default: 0
+
+/**
+ * Color scheme for the Terminal text display
+ *
+ * Options: [0: Material Dark, 1: Material Light, 2: High-Contrast]
+ *  Material Dark: Dark background with light font color and orange command font color.
+ *  Material Light: Light background with dark font color and orange command font color.
+ *  High-Contrast: Black background with white font color and orange command font color.
+ */
+#define TERMINAL_COLOR_SCHEME 0  // Default: 0
 
 /**
  * QWERTY/QWERTZ keyboard layout

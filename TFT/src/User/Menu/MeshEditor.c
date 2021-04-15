@@ -1,10 +1,11 @@
 #include "MeshEditor.h"
 #include "includes.h"
 
-#define MESH_GRID_SIZE (MESH_GRID_MAX_POINTS_X * MESH_GRID_MAX_POINTS_Y)
-#define MESH_MAX_PARSED_ROWS 30                            // Set the maximum number of data rows to parse for retrieving the mesh
+#define MESH_GRID_SIZE             (MESH_GRID_MAX_POINTS_X * MESH_GRID_MAX_POINTS_Y)
+#define MESH_MAX_PARSED_ROWS       30                      // maximum number of data rows to parse for retrieving the mesh
                                                            // grid from the "M420 T1 V1" command output provided by the Marlin FW
-#define MESH_LINE_EDGE_DISTANCE 4
+#define MESH_MAX_RETRIEVE_ATTEMPTS 20                      // maximum number of attempts to retrieve the data format from Marlin FW
+#define MESH_LINE_EDGE_DISTANCE    4
 
 // colors
 #define VALUE_FONT_COLOR   infoSettings.font_color
@@ -58,6 +59,7 @@ typedef struct
 
   MESH_DATA_STATUS status;                                 // current status of dataOrig/data
 
+  float ablState;
   uint16_t parsedRows;
 
   uint16_t colsToSkip;
@@ -231,6 +233,7 @@ void meshInitData(void)
 
   meshData->status = ME_DATA_IDLE;
 
+  meshData->ablState = getParameter(P_ABL_STATE, 0);
   meshData->parsedRows = 0;
 
   meshSaveCallbackPtr = NULL;
@@ -246,12 +249,20 @@ static inline void meshAllocData(void)
   meshInitData();
 
   probeHeightEnable();                                     // temporary disable software endstops
+
+  // if enabled, always disable ABL before editing a mesh
+  if (meshData->ablState == ENABLED)
+    storeCmd(infoMachineSettings.firmwareType != FW_REPRAPFW ? "M420 S0\n" : "G29 S2\n");
 }
 
 void meshDeallocData(void)
 {
   if (meshData == NULL)
     return;
+
+  // restore original ABL state
+  if (meshData->ablState == ENABLED)
+    storeCmd(infoMachineSettings.firmwareType != FW_REPRAPFW ? "M420 S1\n" : "G29 S1\n");
 
   free(meshData);
 
@@ -704,20 +715,27 @@ void meshSave(bool saveOnChange)
 }
 
 bool meshIsWaitingFirstData(void)
-{
-  if (meshData == NULL ||
-    meshData->status != ME_DATA_IDLE)                      // if mesh editor is not running or is already handling data
+{ // just avoid to merge on the same "if" statement a check on NULL value and an access
+  // to attributes of the data structure meshData due to different compiler optimization
+  // settings (that could evaluate all the conditions in the "if" statement, causing a crash)
+  if (meshData == NULL)                                    // if mesh editor is not running
+    return false;
+
+  if (meshData->status != ME_DATA_IDLE)                    // if mesh editor is already handling data
     return false;
 
   return true;
 }
 
 bool meshIsWaitingData(void)
-{
-  if (meshData == NULL ||
-    meshData->status == ME_DATA_IDLE ||
-    meshData->status == ME_DATA_FULL ||
-    meshData->status == ME_DATA_FAILED)                    // if mesh editor is not running or is not waiting for data
+{ // just avoid to merge on the same "if" statement a check on NULL value and an access
+  // to attributes of the data structure meshData due to different compiler optimization
+  // settings (that could evaluate all the conditions in the "if" statement, causing a crash)
+  if (meshData == NULL)                                    // if mesh editor is not running
+    return false;
+
+  if (meshData->status == ME_DATA_FULL ||
+    meshData->status == ME_DATA_FAILED)                    // is not waiting for data
     return false;
 
   return true;
@@ -767,12 +785,25 @@ void meshUpdateData(char *dataRow)
   if (meshIsWaitingFirstData())                            // if waiting for first data
   {
     if (processKnownDataFormat(dataRow))                   // if known data format, change state to EMPTY and proceed with data handling
+    {
+      meshData->parsedRows = 0;
       meshData->status = ME_DATA_EMPTY;
+    }
+    else if (meshData->parsedRows < MESH_MAX_RETRIEVE_ATTEMPTS)      // max number of attempts to retrieve data format from Marlin
+    {
+      meshData->parsedRows++;
+
+      return;
+    }
     else
+    {
       failed = true;
+    }
   }
   else if (!meshIsWaitingData())                           // if not waiting for data, nothing to do
+  {
     return;
+  }
 
   if (!failed)
   {
@@ -814,7 +845,9 @@ void meshUpdateData(char *dataRow)
         memcpy(&meshData->data, &meshData->dataOrig, sizeof(meshData->dataOrig));
       }
       else                                                 // if mesh grid is smaller than a 1x1 matrix, data grid is marked as failed
+      {
         failed = true;
+      }
     }
   }
 
@@ -891,12 +924,7 @@ void menuMeshEditor(void)
             forceHoming = false;
 
             mustStoreCmd("G28\n");                         // only the first time, home the printer
-            if (IS_DELTA)
-            {
-              mustStoreCmd("G91\n");                                  // Set Relative Positioning
-              mustStoreCmd("G1 Z-%.2f F1500\n", DELTA_MBL_Z_DROP_MM); // Drop by "DELTA_MBL_Z_DROP_MM" mm
-              mustStoreCmd("G90\n");                                  // Set Absolute Positioing
-            }
+            probeHeightStop(infoSettings.z_raise_probing); // raise nozzle
           }
 
           curValue = menuMeshTuner(meshGetCol(), meshGetJ(), meshGetValue(meshGetIndex()));
@@ -923,13 +951,8 @@ void menuMeshEditor(void)
       case ME_KEY_HOME:
         forceHoming = false;
 
-        mustStoreCmd("G28\n");  // force homing (e.g. if steppers are disarmed)
-        if (IS_DELTA)
-        {
-          mustStoreCmd("G91\n");                                   // Set Relative Positioning
-          mustStoreCmd("G1 Z-%.2f F1500\n", DELTA_MBL_Z_DROP_MM);  // Drop by "DELTA_MBL_Z_DROP_MM" mm
-          mustStoreCmd("G90\n");                                   // Set Absolute Positioing
-        }
+        mustStoreCmd("G28\n");                             // force homing (e.g. if steppers are disarmed)
+        probeHeightStop(infoSettings.z_raise_probing);     // raise nozzle
         break;
 
       case ME_KEY_SAVE:
