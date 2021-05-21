@@ -15,9 +15,13 @@ static inline void mblStart(void)
 
   // MBL gcode sequence start
   mustStoreCmd("G28\n");
-  mustStoreCmd("G29 S1\n");                           // home and move to first point for Z height adjustment
-  probeHeightStart(infoSettings.level_z_pos, false);  // raise nozzle
-  probeHeightRelative();                              // set relative position mode
+  mustStoreCmd("G29 S1\n");  // home and move to first point for Z height adjustment
+
+  #ifdef ENABLE_MBL_START_Z
+    probeHeightStart(infoSettings.level_z_pos, false);  // raise nozzle
+  #endif
+
+  probeHeightRelative();  // set relative position mode
 }
 
 // Stop MBL
@@ -155,6 +159,7 @@ void menuMBL(void)
 
   now = curValue = coordinateGetAxisActual(Z_AXIS);
 
+  INVERT_Z_AXIS_ICONS(&mblItems);
   mblItems.items[KEY_ICON_4] = itemMoveLen[curUnit_index];
 
   if (mblRunning)
@@ -238,7 +243,9 @@ void menuMBL(void)
         {
           storeCmd("G29 S2\n");  // save Z height and move to next mesh point
 
-          probeHeightStart(infoSettings.level_z_pos, false);  // raise nozzle
+          #ifdef ENABLE_MBL_START_Z
+            probeHeightStart(infoSettings.level_z_pos, false);  // raise nozzle
+          #endif
 
           ++mblPoint;
           mblDrawHeader(&mblPoint);
@@ -259,7 +266,7 @@ void menuMBL(void)
             if (!mblRunning)
               mblNotifyError(false);
             else
-              probeHeightMove(unit, encoderPosition > 0 ? 1 : -1);
+              probeHeightMove(unit, encoderPosition < 0 ? -1 : 1);
 
             encoderPosition = 0;
           }
