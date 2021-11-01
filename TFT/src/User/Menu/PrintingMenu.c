@@ -105,15 +105,17 @@ static void setLayerHeightText(char * layer_height_txt)
 
 static void setLayerNumberTxt(char * layer_number_txt)
 {
-  if (getLayerNumber() > 0)
+  uint16_t layerNumber = getPrintLayerNumber();
+  uint16_t layerCount = getPrintLayerCount();
+  if (layerNumber > 0)
   {
-    if (getLayerCount() > 0)
-    {
-      sprintf(layer_number_txt, "%u/%u", getLayerNumber(), getLayerCount());
+    if (layerCount > 0 && layerCount < 1000)
+    { // there's no space to display layer number & count if the layer count is above 999
+      sprintf(layer_number_txt, " %u/%u ", layerNumber, layerCount);
     }
     else
     {
-      sprintf(layer_number_txt, "%u", getLayerNumber());
+      sprintf(layer_number_txt, "%s%u%s", "  ", layerNumber, "  ");
     }
   }
   else
@@ -141,7 +143,7 @@ void menuBeforePrinting(void)
         if (size == 0)
         {
           ExitDir();
-          infoMenu.cur--;
+          CLOSE_MENU();
           return;
         }
 
@@ -166,7 +168,7 @@ void menuBeforePrinting(void)
         if (f_open(&file, infoFile.title, FA_OPEN_EXISTING | FA_READ) != FR_OK)
         {
           ExitDir();
-          infoMenu.cur--;
+          CLOSE_MENU();
           return;
         }
 
@@ -180,20 +182,18 @@ void menuBeforePrinting(void)
 
     default:
       ExitDir();
-      infoMenu.cur--;
+      CLOSE_MENU();
       return;
   }
 
   // initialize things before the print starts
   progDisplayType = infoSettings.prog_disp_type;
   layerDisplayType = infoSettings.layer_disp_type * 2;
-  setLayerNumber(0);
   coordinateSetAxisActual(Z_AXIS, 0);
   coordinateSetAxisTarget(Z_AXIS, 0);
   setM73_presence(false);
-  setTotalTime(0);
-  
-  infoMenu.menu[infoMenu.cur] = menuPrinting;
+
+  REPLACE_MENU(menuPrinting);
 }
 
 static inline void reDrawPrintingValue(uint8_t icon_pos, uint8_t draw_type)
@@ -504,7 +504,7 @@ void drawPrintInfo(void)
 void stopConfirm(void)
 {
   printAbort();
-  infoMenu.cur--;
+  CLOSE_MENU();
 }
 
 void printInfoPopup(void)
@@ -604,7 +604,7 @@ void menuPrinting(void)
   if (lastPrinting == false)
     drawPrintInfo();
 
-  while (infoMenu.menu[infoMenu.cur] == menuPrinting)
+  while (MENU_IS(menuPrinting))
   {
     //Scroll_DispString(&titleScroll, LEFT);  // Scroll display file name will take too many CPU cycles
 
@@ -698,7 +698,7 @@ void menuPrinting(void)
 
     if (layerDisplayType == SHOW_LAYER_BOTH || layerDisplayType == SHOW_LAYER_NUMBER)
     {
-      curLayerNumber = getLayerNumber();
+      curLayerNumber = getPrintLayerNumber();
       if (curLayerNumber != prevLayerNumber)
       {
         prevLayerNumber = curLayerNumber;
@@ -737,16 +737,16 @@ void menuPrinting(void)
     {
       case PS_KEY_0:
         heatSetCurrentIndex(currentTool);
-        infoMenu.menu[++infoMenu.cur] = menuHeat;
+        OPEN_MENU(menuHeat);
         break;
 
       case PS_KEY_1:
         heatSetCurrentIndex(BED + currentBCIndex);
-        infoMenu.menu[++infoMenu.cur] = menuHeat;
+        OPEN_MENU(menuHeat);
         break;
 
       case PS_KEY_2:
-        infoMenu.menu[++infoMenu.cur] = menuFan;
+        OPEN_MENU(menuFan);
         break;
 
       case PS_KEY_3:
@@ -771,7 +771,7 @@ void menuPrinting(void)
         break;
 
       case PS_KEY_5:
-        infoMenu.menu[++infoMenu.cur] = menuSpeed;
+        OPEN_MENU(menuSpeed);
         break;
 
       case PS_KEY_6:
@@ -793,11 +793,11 @@ void menuPrinting(void)
         break;
 
       case PS_KEY_7:
-        infoMenu.menu[++infoMenu.cur] = menuBabystep;
+        OPEN_MENU(menuBabystep);
         break;
 
       case PS_KEY_8:
-        infoMenu.menu[++infoMenu.cur] = menuMore;
+        OPEN_MENU(menuMore);
         break;
 
       case PS_KEY_9:
@@ -809,7 +809,7 @@ void menuPrinting(void)
         else
         {
           clearInfoPrint();
-          infoMenu.cur--;
+          CLOSE_MENU();
         }
         break;
 

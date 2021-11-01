@@ -4,10 +4,13 @@
 typedef struct
 {
   FIL        file;
+  uint32_t   size;                // Gcode file total size
+  uint32_t   cur;                 // Gcode file printed size
+  uint32_t   expectedTime;        // expected print duration in sec
   uint32_t   time;                // current elapsed time in sec
   uint32_t   remainingTime;       // current remaining time in sec (if set with M73 or M117)
-  uint32_t   size;                // Gcode file total size
-  uint32_t   cur;                 // Gcode has printed file size
+  uint16_t   layerNumber;
+  uint16_t   layerCount;
   uint8_t    prevProgress;
   uint8_t    progress;
   bool       progressFromSlicer;  // 1: progress controlled by Slicer (if set with M73)
@@ -63,6 +66,16 @@ void resumeAndContinue(void)
   setRunoutAlarmFalse();
   clearCmdQueue();
   Serial_Puts(SERIAL_PORT, "M876 S1\n");
+}
+
+void setPrintExpectedTime(uint32_t expectedTime)
+{
+  infoPrinting.expectedTime = expectedTime;
+}
+
+uint32_t getPrintExpectedTime(void)
+{
+  return infoPrinting.expectedTime;
 }
 
 void setPrintTime(uint32_t elapsedTime)
@@ -122,6 +135,26 @@ void getPrintRemainingTimeDetail(uint8_t * hour, uint8_t * min, uint8_t * sec)
   *hour = infoPrinting.remainingTime / 3600;
   *min = infoPrinting.remainingTime % 3600 / 60;
   *sec = infoPrinting.remainingTime % 60;
+}
+
+void setPrintLayerNumber(uint16_t layerNumber)
+{
+  infoPrinting.layerNumber = layerNumber;
+}
+
+uint16_t getPrintLayerNumber()
+{
+  return infoPrinting.layerNumber;
+}
+
+void setPrintLayerCount(uint16_t layerCount)
+{
+  infoPrinting.layerCount = layerCount;
+}
+
+uint16_t getPrintLayerCount()
+{
+  return infoPrinting.layerCount;
 }
 
 uint32_t getPrintSize(void)
@@ -331,7 +364,7 @@ static inline void printRemoteStart(void)
   initPrintSummary();  // init print summary
 
   infoMenu.cur = 1;  // Clear menu buffer when printing menu is active by remote
-  infoMenu.menu[infoMenu.cur] = menuPrinting;
+  REPLACE_MENU(menuPrinting);
 }
 
 void printStart(FIL * file, uint32_t size)
@@ -732,7 +765,7 @@ void loopPrintFromTFT(void)
 void loopPrintFromHost(void)
 {
   #ifdef HAS_EMULATOR
-    if (infoMenu.menu[infoMenu.cur] == menuMarlinMode) return;
+    if (MENU_IS(menuMarlinMode)) return;
   #endif
 
   if (infoHost.printing && !infoPrinting.printing)  // if a print starting form a remote host is intercepted
@@ -742,7 +775,7 @@ void loopPrintFromHost(void)
 
   if (infoFile.source < BOARD_SD) return;
   if (infoMachineSettings.autoReportSDStatus == ENABLED) return;
-  if (infoMenu.menu[infoMenu.cur] == menuTerminal) return;
+  if (MENU_IS(menuTerminal)) return;
   if (!infoSettings.m27_active && !infoPrinting.printing) return;
 
   static uint32_t nextCheckPrintTime = 0;

@@ -12,6 +12,7 @@ static bool was_printing = false;
 
 static uint16_t rrf_query_interval = RRF_NORMAL_STATUS_QUERY_MS;
 static bool macro_busy = false;
+bool starting_print = false;
 
 void rrfStatusSet(char status)
 {
@@ -29,8 +30,9 @@ void rrfStatusSet(char status)
             setPrintResume(true);
             break;
           case 'I':
-            // parseACK will take care of going to the print screen
+            // RRFParseACK will take care of going to the print screen
             mustStoreCmd("M409 K\"job.file.fileName\"\n");
+            starting_print = true;
             break;
         }
         break;
@@ -123,7 +125,7 @@ void rrfStatusQuery(void)
     static uint32_t rrf_next_query_time = 0;
 
     // don't send status queries while in the terminal menu to avoid flooding the console
-    if (OS_GetTimeMs() > rrf_next_query_time && infoMenu.menu[infoMenu.cur] != menuTerminal)
+    if (OS_GetTimeMs() > rrf_next_query_time && MENU_IS_NOT(menuTerminal))
     {
       rrf_next_query_time = OS_GetTimeMs() + rrf_query_interval;
       storeCmd("M408 S0\n");

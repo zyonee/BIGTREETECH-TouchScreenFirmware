@@ -86,7 +86,7 @@ typedef union
 } LABEL;
 
 // always initialize label to default values
-#define init_label(X) LABEL X = {.index = LABEL_BACKGROUND, .address = NULL}
+#define init_label(X) LABEL X = {.index = LABEL_BACKGROUND}
 
 typedef struct
 {
@@ -104,7 +104,8 @@ typedef enum
 {
   STATUS_IDLE = 0,
   STATUS_BUSY,
-  STATUS_UNCONNECT,
+  STATUS_DISCONNECTED,
+  STATUS_LISTENING,
   STATUS_NORMAL
 } SYS_STATUS;
 
@@ -171,7 +172,6 @@ extern const GUI_RECT rect_of_titleBar[1];
 void setMenuType(MENU_TYPE type);
 MENU_TYPE getMenuType(void);
 
-void reminderSetUnConnected(void);
 void reminderMessage(int16_t inf, SYS_STATUS status);
 void volumeReminderMessage(int16_t inf, SYS_STATUS status);
 void notificationDot(void);

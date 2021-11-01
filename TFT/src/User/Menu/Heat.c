@@ -42,11 +42,10 @@ void menuHeat(void)
   menuDrawPage(&heatItems);
   temperatureReDraw(tool_index, NULL, false);
 
-  while (infoMenu.menu[infoMenu.cur] == menuHeat)
+  while (MENU_IS(menuHeat))
   {
     actCurrent = heatGetCurrentTemp(tool_index);
     actTarget = heatGetTargetTemp(tool_index);
-
     key_num = menuKeyGetValue();
 
     switch (key_num)
@@ -63,7 +62,6 @@ void menuHeat(void)
         if (val != actTarget)
           heatSetTargetTemp(tool_index, val);
 
-        menuDrawPage(&heatItems);
         temperatureReDraw(tool_index, NULL, false);
         break;
       }
@@ -97,7 +95,7 @@ void menuHeat(void)
         break;
 
       case KEY_ICON_7:
-        infoMenu.cur--;
+        CLOSE_MENU();
         break;
 
       default:

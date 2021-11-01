@@ -131,11 +131,11 @@ void menuZOffset(void)
   menuDrawPage(&zOffsetItems);
   zOffsetDraw(offsetGetStatus(), now);
 
-  while (infoMenu.menu[infoMenu.cur] == menuZOffset)
+  while (MENU_IS(menuZOffset))
   {
-    key_num = menuKeyGetValue();
     unit = moveLenSteps[curUnit_index];
     z_offset = offsetGetValue();  // always load current Z offset
+    key_num = menuKeyGetValue();
 
     switch (key_num)
     {
@@ -152,7 +152,7 @@ void menuZOffset(void)
         if (offsetGetStatus())
           zOffsetNotifyError(true);
         else
-          infoMenu.menu[++infoMenu.cur] = menuUnifiedHeat;
+          OPEN_MENU(menuUnifiedHeat);
         break;
 
       // increase Z offset
@@ -232,7 +232,7 @@ void menuZOffset(void)
         if (offsetGetStatus())
           offsetDisable();
 
-        infoMenu.cur--;
+        CLOSE_MENU();
         break;
 
       default:
