@@ -18,9 +18,9 @@ const GUI_RECT  rectProgressframe = {BYTE_WIDTH/2-2, LCD_HEIGHT-(BYTE_HEIGHT*2+B
 const GUI_POINT pointProgressText = {BYTE_WIDTH/2-2, LCD_HEIGHT-(BYTE_HEIGHT*4)};
 
 const char * const config_keywords[CONFIG_COUNT] = {
-#define X_CONFIG(NAME) CONFIG_##NAME,
-  #include "config.inc"
-#undef X_CONFIG
+  #define X_CONFIG(NAME) CONFIG_##NAME ,
+    #include "config.inc"
+  #undef X_CONFIG
 };
 
 const char * const cgList[] = CUSTOM_GCODE_LIST;
@@ -40,9 +40,9 @@ uint8_t customcode_index = 0;
 uint8_t customcode_good[CUSTOM_GCODES_COUNT];
 bool scheduleRotate = false;
 
-bool getConfigFromFile(void)
+bool getConfigFromFile(char * configPath)
 {
-  if (f_file_exists(CONFIG_FILE_PATH) == false)
+  if (f_file_exists(configPath) == false)
   {
     PRINTDEBUG("configFile not found\n");
     return false;
@@ -65,7 +65,7 @@ bool getConfigFromFile(void)
 
   drawProgressPage((uint8_t*)"Updating Configuration...");
 
-  if (readConfigFile(CONFIG_FILE_PATH, parseConfigLine, LINE_MAX_CHAR))
+  if (readConfigFile(configPath, parseConfigLine, LINE_MAX_CHAR))
   {
     // store custom codes count
     configCustomGcodes->count = customcode_index;
@@ -89,19 +89,20 @@ bool getConfigFromFile(void)
   }
 }
 
-bool getLangFromFile(void)
+bool getLangFromFile(char * rootDir)
 {
   bool success = false;
   foundkeys = 0;
   DIR d;
   FILINFO f;
-  FRESULT r =  f_findfirst(&d, &f, "0:", "language_*.ini");
+  FRESULT r = f_findfirst(&d, &f, rootDir, "language_*.ini");
+
   f_closedir(&d);
   if (r != FR_OK)
-   return false;
+    return false;
 
   char langpath[256];
-  sprintf(langpath, "0:%s", f.fname);
+  sprintf(langpath, "%s/%s", rootDir, f.fname);
 
   if (!f_file_exists(langpath))
     return false;
@@ -112,19 +113,25 @@ bool getLangFromFile(void)
   drawProgressPage((uint8_t*)f.fname);
 
   // erase part of flash to be rewritten
-  for (int i = 0; i < (LANGUAGE_SIZE / W25QXX_SECTOR_SIZE);i++)
+  for (int i = 0; i < (LANGUAGE_SIZE / W25QXX_SECTOR_SIZE); i++)
   {
     W25Qxx_EraseSector(LANGUAGE_ADDR + (i * W25QXX_SECTOR_SIZE));
   }
+
   success = readConfigFile(langpath, parseLangLine, MAX_LANG_LABEL_LENGTH + 100);
+
   if (foundkeys != LABEL_NUM)
+  {
+    showError(CSTAT_FILE_INVALID);
     success = false;
+  }
   else
   {  // rename file if update was successful
-    if (!f_file_exists(ADMIN_MODE_FILE) && f_file_exists(langpath))
+    if (!f_file_exists(FILE_ADMIN_MODE) && f_file_exists(langpath))
     {  // language exists
       char newlangpath[256];
-      sprintf(newlangpath, "0:%s.CUR", f.fname);
+      sprintf(newlangpath, "%s/%s.CUR", rootDir, f.fname);
+
       if (f_file_exists(newlangpath))
       {  // old language also exists
         f_unlink(newlangpath);
@@ -135,7 +142,7 @@ bool getLangFromFile(void)
   return success;
 }
 
-bool readConfigFile(const char * path, void (*lineParser)(), uint16_t maxLineLen)
+bool readConfigFile(const char * path, void (* lineParser)(), uint16_t maxLineLen)
 {
   bool comment_mode = false;
   bool comment_space = true;
@@ -182,8 +189,7 @@ bool readConfigFile(const char * path, void (*lineParser)(), uint16_t maxLineLen
         comment_space = true;
         if (count != 0)
         {
-          cur_line[count++] = '\0';
-          cur_line[count] = 0;  // terminate string
+          cur_line[count] = '\0';  // terminate string
           lineParser();
           drawProgress();
 
@@ -212,8 +218,7 @@ bool readConfigFile(const char * path, void (*lineParser)(), uint16_t maxLineLen
 
             if (configFile.cur == configFile.size)
             {
-              cur_line[count++] = '\0';
-              cur_line[count] = 0;  // terminate string
+              cur_line[count] = '\0';  // terminate string
               PRINTDEBUG("line read\n");
               lineParser();  // start parsing at the end of the file.
               drawProgress();
@@ -247,14 +252,15 @@ bool inLimit(int val, int min, int max)
 bool key_seen(const char * keyStr)
 {
   uint16_t i;
-  for (c_index = 0; c_index < LINE_MAX_CHAR && cur_line[c_index] != 0; c_index++)
+  for (c_index = 0, i = 0; c_index < LINE_MAX_CHAR && cur_line[c_index] != '\0'; c_index++, i = 0)
   {
-    for (i = 0; (c_index + i) < LINE_MAX_CHAR && keyStr[i] != 0 && cur_line[c_index + i] == keyStr[i]; i++)
-    {}
-    if (keyStr[i] == 0)
+    while (cur_line[c_index + i] == keyStr[i])
     {
-      c_index += i;
-      return true;
+      if (keyStr[++i] == '\0')
+      {
+        c_index += i;
+        return true;
+      }
     }
   }
   return false;
@@ -556,7 +562,9 @@ void parseConfigKey(uint16_t index)
 
     case C_INDEX_EMULATED_M600:
     case C_INDEX_EMULATED_M109_M190:
-      SET_BIT_VALUE(infoSettings.general_settings, ((index - C_INDEX_EMULATED_M600) + EMULATED_M600), getOnOff());
+    case C_INDEX_EVENT_LED:
+    case C_INDEX_FILE_COMMENT_PARSING:
+      SET_BIT_VALUE(infoSettings.general_settings, ((index - C_INDEX_EMULATED_M600) + INDEX_EMULATED_M600), getOnOff());
       break;
 
     //----------------------------UI Settings
@@ -633,6 +641,10 @@ void parseConfigKey(uint16_t index)
       infoSettings.files_list_mode = getOnOff();
       break;
 
+    case C_INDEX_FILENAME_EXTENSION:
+      infoSettings.filename_extension = getOnOff();
+      break;
+
     case C_INDEX_FAN_SPEED_PERCENTAGE:
       infoSettings.fan_percentage = getOnOff();
       break;
@@ -647,6 +659,10 @@ void parseConfigKey(uint16_t index)
 
     case C_INDEX_NOTIFICATION_M117:
       infoSettings.notification_m117 = getOnOff();
+      break;
+
+    case C_INDEX_PROG_SOURCE:
+      SET_VALID_INT_VALUE(infoSettings.prog_source, 0, 1);
       break;
 
     case C_INDEX_PROG_DISP_TYPE:
@@ -704,7 +720,7 @@ void parseConfigKey(uint16_t index)
     //----------------------------Printer / Machine Settings
 
     case C_INDEX_HOTEND_COUNT:
-      SET_VALID_INT_VALUE(infoSettings.hotend_count, 1, MAX_HOTEND_COUNT);
+      SET_VALID_INT_VALUE(infoSettings.hotend_count, 0, MAX_HOTEND_COUNT);
       break;
 
     case C_INDEX_HEATED_BED:
@@ -716,7 +732,7 @@ void parseConfigKey(uint16_t index)
       break;
 
     case C_INDEX_EXT_COUNT:
-      SET_VALID_INT_VALUE(infoSettings.ext_count, 1, MAX_EXT_COUNT);
+      SET_VALID_INT_VALUE(infoSettings.ext_count, 0, MAX_EXT_COUNT);
       break;
 
     case C_INDEX_FAN_COUNT:
@@ -749,7 +765,7 @@ void parseConfigKey(uint16_t index)
       if (key_seen("F3:")) SET_VALID_INT_VALUE(infoSettings.fan_max[3], MIN_FAN_SPEED, MAX_FAN_SPEED);
       if (key_seen("F4:")) SET_VALID_INT_VALUE(infoSettings.fan_max[4], MIN_FAN_SPEED, MAX_FAN_SPEED);
       if (key_seen("F5:")) SET_VALID_INT_VALUE(infoSettings.fan_max[5], MIN_FAN_SPEED, MAX_FAN_SPEED);
-      if (key_seen("CtL:")) SET_VALID_INT_VALUE(infoSettings.fan_max[6], MIN_FAN_SPEED, MAX_FAN_SPEED);
+      if (key_seen("CtA:")) SET_VALID_INT_VALUE(infoSettings.fan_max[6], MIN_FAN_SPEED, MAX_FAN_SPEED);
       if (key_seen("CtI:")) SET_VALID_INT_VALUE(infoSettings.fan_max[7], MIN_FAN_SPEED, MAX_FAN_SPEED);
       break;
 
@@ -844,7 +860,7 @@ void parseConfigKey(uint16_t index)
       if (key_seen("X")) SET_BIT_VALUE(infoSettings.inverted_axis, X_AXIS, getOnOff());
       if (key_seen("Y")) SET_BIT_VALUE(infoSettings.inverted_axis, Y_AXIS, getOnOff());
       if (key_seen("Z")) SET_BIT_VALUE(infoSettings.inverted_axis, Z_AXIS, getOnOff());
-      if (key_seen("LY")) infoSettings.leveling_inverted_y_axis = getOnOff();
+      if (key_seen("LY")) SET_BIT_VALUE(infoSettings.inverted_axis, E_AXIS, getOnOff());  // leveling Y axis
       break;
 
     case C_INDEX_PROBING_Z_OFFSET:
@@ -984,14 +1000,27 @@ void parseConfigKey(uint16_t index)
         break;
     #endif
 
-    #ifdef LED_COLOR_PIN
+    case C_INDEX_LED_COLOR:
+      if (key_seen("R:")) SET_VALID_INT_VALUE(infoSettings.led_color[0], MIN_LED_COLOR_COMP, MAX_LED_COLOR_COMP);
+      if (key_seen("G:")) SET_VALID_INT_VALUE(infoSettings.led_color[1], MIN_LED_COLOR_COMP, MAX_LED_COLOR_COMP);
+      if (key_seen("B:")) SET_VALID_INT_VALUE(infoSettings.led_color[2], MIN_LED_COLOR_COMP, MAX_LED_COLOR_COMP);
+      if (key_seen("W:")) SET_VALID_INT_VALUE(infoSettings.led_color[3], MIN_LED_COLOR_COMP, MAX_LED_COLOR_COMP);
+      if (key_seen("P:")) SET_VALID_INT_VALUE(infoSettings.led_color[4], MIN_LED_COLOR_COMP, MAX_LED_COLOR_COMP);
+      if (key_seen("I:")) SET_VALID_INT_VALUE(infoSettings.led_color[5], MIN_LED_COLOR_COMP, MAX_LED_COLOR_COMP);
+      break;
+
+    case C_INDEX_LED_ALWAYS_ON:
+      infoSettings.led_always_on = getOnOff();
+      break;
+
+    #ifdef KNOB_LED_COLOR_PIN
       case C_INDEX_KNOB_LED_COLOR:
-        SET_VALID_INT_VALUE(infoSettings.knob_led_color, 0, LED_COLOR_COUNT - 1);
+        SET_VALID_INT_VALUE(infoSettings.knob_led_color, 0, KNOB_LED_COLOR_COUNT - 1);
         break;
 
       #ifdef LCD_LED_PWM_CHANNEL
         case C_INDEX_KNOB_LED_IDLE:
-          SET_VALID_INT_VALUE(infoSettings.knob_led_idle, 0, 1);
+          infoSettings.knob_led_idle = getOnOff();
           break;
       #endif
 
@@ -1001,7 +1030,7 @@ void parseConfigKey(uint16_t index)
         break;
     #endif
 
-    //----------------------------Custom Gcode Commands
+    //----------------------------Custom G-code Commands
 
     case C_INDEX_CUSTOM_LABEL_1:
     case C_INDEX_CUSTOM_LABEL_2:
@@ -1062,7 +1091,7 @@ void parseConfigKey(uint16_t index)
       break;
     }
 
-    //----------------------------Start, End & Cancel Gcode Commands
+    //----------------------------Start, End & Cancel G-code Commands
 
     case C_INDEX_START_GCODE_ENABLED:
     case C_INDEX_END_GCODE_ENABLED:

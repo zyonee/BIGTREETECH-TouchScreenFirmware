@@ -9,7 +9,7 @@ extern const GUI_RECT titleRect;
 void scanInfoFilesFs(void)
 {
   clearInfoFile();
-  request_M20_rrf(infoFile.title, false, parseMacroListResponse);
+  request_M20_rrf(infoFile.path, false, parseMacroListResponse);
 }
 
 void rrfShowRunningMacro(void)
@@ -26,10 +26,9 @@ void runMacro(const char *display_name)
   running_macro_name = display_name;
   rrfShowRunningMacro();
 
-  request_M98(infoFile.title);
+  request_M98(infoFile.path);
 
-  ExitDir();
-  OPEN_MENU(menuDummy);  // force a redraw
+  exitFolder();
 }
 
 // Draw Macro file list
@@ -61,8 +60,8 @@ void menuCallMacro(void)
 {
   uint16_t key_num = KEY_IDLE;
   uint8_t update = 1;
-  infoFile.cur_page = 0;
-  infoFile.source = BOARD_SD;
+  infoFile.curPage = 0;
+  infoFile.source = FS_ONBOARD_MEDIA;
 
   GUI_Clear(MENU_BACKGROUND_COLOR);
   GUI_DispStringInRect(0, 0, LCD_WIDTH, LCD_HEIGHT, textSelect(LABEL_LOADING));
@@ -80,8 +79,8 @@ void menuCallMacro(void)
     switch (key_num)
     {
       case KEY_BACK:
-        infoFile.cur_page = 0;
-        if (IsRootDir() == true)
+        infoFile.curPage = 0;
+        if (isRootFolder() == true)
         {
           clearInfoFile();
           CLOSE_MENU();
@@ -89,7 +88,7 @@ void menuCallMacro(void)
         }
         else
         {
-          ExitDir();
+          exitFolder();
           scanInfoFilesFs();
           update = 1;
         }
@@ -103,21 +102,22 @@ void menuCallMacro(void)
         {
           if (key_num < infoFile.folderCount)  // folder
           {
-            if (EnterDir(infoFile.folder[key_num]) == false)
+            if (enterFolder(infoFile.folder[key_num]) == false)
               break;
             scanInfoFilesFs();
             update = 1;
-            infoFile.cur_page = 0;
+            infoFile.curPage = 0;
           }
           else if (key_num < infoFile.fileCount + infoFile.folderCount)  // gcode
           {
             if (infoHost.connected != true)
               break;
 
-            if (EnterDir(infoFile.Longfile[key_num - infoFile.folderCount]) == false)
+            if (enterFolder(infoFile.longFile[key_num - infoFile.folderCount]) == false)
               break;
 
             runMacro(infoFile.file[key_num - infoFile.folderCount]);
+            update = 1;
           }
         }
         break;
@@ -127,11 +127,11 @@ void menuCallMacro(void)
     {
       update = 0;
 
-      listViewCreate((LABEL){.address = (uint8_t *)infoFile.title}, NULL, infoFile.folderCount + infoFile.fileCount,
-                       &infoFile.cur_page, false, NULL, macroListDraw);
+      listViewCreate((LABEL){.address = (uint8_t *)infoFile.path}, NULL, infoFile.folderCount + infoFile.fileCount,
+                     &infoFile.curPage, false, NULL, macroListDraw);
 
       // set scrolling title text
-      Scroll_CreatePara(&scrollLine, (uint8_t *)infoFile.title, &titleRect);
+      Scroll_CreatePara(&scrollLine, (uint8_t *)infoFile.path, &titleRect);
       GUI_SetBkColor(infoSettings.title_bg_color);
       GUI_ClearRect(0, 0, LCD_WIDTH, TITLE_END_Y);
       GUI_SetBkColor(infoSettings.bg_color);
@@ -140,4 +140,3 @@ void menuCallMacro(void)
     loopProcess();
   }
 }
-

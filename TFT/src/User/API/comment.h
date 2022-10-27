@@ -10,16 +10,10 @@ extern "C" {
 
 #define COMMENT_MAX_CHAR 100
 
-typedef struct
-{
-  char content[COMMENT_MAX_CHAR];
-  bool handled;
-} COMMENT;
+extern char gCodeCommentLine[COMMENT_MAX_CHAR];
 
-extern COMMENT gCode_comment;
-
-void parseComment();
-void setM73_presence(bool present);
+void setTimeFromSlicer(bool present);
+void parseComment(void);
 
 #ifdef __cplusplus
 }

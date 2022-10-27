@@ -13,7 +13,7 @@ uint8_t currentFan = 0;
 uint8_t currentSpeedID = 0;
 static uint32_t lastTime = 0;
 
-//Icons list for tool change
+// Icons list for tool change
 const ITEM itemTool[MAX_HEATER_COUNT] =
 {
 // icon                          label
@@ -267,10 +267,10 @@ void percentageReDraw(uint8_t itemIndex, bool skipHeader)
 }
 
 static void redrawMenu(MENU_TYPE menuType)
-{// used only when exiting from numpad
+{ // used only when exiting from numpad
   if (menuType == MENU_TYPE_ICON)
     menuDrawPage(getCurMenuItems());
-  else if(menuType == MENU_TYPE_LISTVIEW)
+  else if (menuType == MENU_TYPE_LISTVIEW)
     listViewRefreshMenu();
 }
 
@@ -317,16 +317,14 @@ NOZZLE_STATUS warmupNozzle(uint8_t toolIndex, void (* callback)(void))
       sprintf(tempStr, (char *)textSelect(LABEL_HEAT_HOTEND), infoSettings.min_ext_temp);
       strcat(tempMsg, "\n");
       strcat(tempMsg, tempStr);
-
-      setDialogText(LABEL_WARNING, (uint8_t *)tempMsg, LABEL_CONFIRM, LABEL_CANCEL);
-      showDialog(DIALOG_TYPE_ERROR, callback, NULL, NULL);
+      popupDialog(DIALOG_TYPE_ERROR, LABEL_WARNING, (uint8_t *)tempMsg, LABEL_CONFIRM, LABEL_CANCEL, callback, NULL, NULL);
 
       return COLD;
     }
     // temperature falling down to a target lower than the minimal extrusion temperature
     else
     { // contiunue with current temp but no lower than the minimum extruder temperature
-      heatSetTargetTemp(toolIndex, MAX(infoSettings.min_ext_temp, heatGetCurrentTemp(toolIndex)));
+      heatSetTargetTemp(toolIndex, MAX(infoSettings.min_ext_temp, heatGetCurrentTemp(toolIndex)), FROM_GUI);
       return SETTLING;
     }
   }
@@ -342,8 +340,7 @@ NOZZLE_STATUS warmupNozzle(uint8_t toolIndex, void (* callback)(void))
       strcat(tempMsg, "\n");
       strcat(tempMsg, tempStr);
 
-      setDialogText(LABEL_WARNING, (uint8_t *)tempMsg, LABEL_CONFIRM, LABEL_BACKGROUND);
-      showDialog(DIALOG_TYPE_ERROR, NULL, NULL, NULL);
+      popupReminder(DIALOG_TYPE_ERROR, LABEL_WARNING, (uint8_t *)tempMsg);
       return COLD;
     }
   }
@@ -351,7 +348,9 @@ NOZZLE_STATUS warmupNozzle(uint8_t toolIndex, void (* callback)(void))
   return HEATED;
 }
 
-// user choice for disabling all heaters/hotends
+#ifdef SAFETY_ALERT
+
+// User choice for disabling all heaters/hotends
 void cooldownTemperature(void)
 {
   if (!isPrinting())
@@ -360,10 +359,11 @@ void cooldownTemperature(void)
     {
       if (heatGetTargetTemp(i) > 0)
       {
-        setDialogText(LABEL_WARNING, LABEL_HEATERS_ON, LABEL_CONFIRM, LABEL_CANCEL);
-        showDialog(DIALOG_TYPE_QUESTION, heatCoolDown, NULL, NULL);
+        popupDialog(DIALOG_TYPE_QUESTION, LABEL_WARNING, LABEL_HEATERS_ON, LABEL_CONFIRM, LABEL_CANCEL, heatCoolDown, NULL, NULL);
         break;
       }
     }
   }
 }
+
+#endif  // SAFETY_ALERT
