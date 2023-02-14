@@ -338,7 +338,7 @@ void hostActionCommands(void)
   }
   else if (ack_seen(":cancel"))  // to be added to Marlin abortprint routine
   {
-    setPrintAbort();
+    printAbortCease();
   }
   else if (ack_seen(":prompt_begin "))
   {
@@ -355,12 +355,12 @@ void hostActionCommands(void)
       setPrintResume(HOST_STATUS_RESUMING);
 
       hostAction.prompt_show = false;
-      Serial_Puts(SERIAL_PORT, "M876 S0\n");  // auto-respond to a prompt request that is not shown on the TFT
+      sendEmergencyCmd("M876 S0\n");  // auto-respond to a prompt request that is not shown on the TFT
     }
     else if (ack_continue_seen("Reheating"))
     {
       hostAction.prompt_show = false;
-      Serial_Puts(SERIAL_PORT, "M876 S0\n");  // auto-respond to a prompt request that is not shown on the TFT
+      sendEmergencyCmd("M876 S0\n");  // auto-respond to a prompt request that is not shown on the TFT
     }
   }
   else if (ack_seen(":prompt_button "))
@@ -552,19 +552,24 @@ void parseACK(void)
     // parse and store temperatures
     else if ((ack_seen("@") && ack_seen("T:")) || ack_seen("T0:"))
     {
-      heatSetCurrentTemp(NOZZLE0, ack_value() + 0.5f);
-      heatSetTargetTemp(NOZZLE0, ack_second_value() + 0.5f, FROM_HOST);
+      uint8_t heaterIndex = NOZZLE0;
 
-      for (uint8_t i = 1; i < MAX_HEATER_COUNT; i++)
+      if (infoSettings.hotend_count == 1)
       {
-        if (!heaterDisplayIsValid(i))
-          continue;
+        heatSetCurrentTemp(heaterIndex, ack_value() + 0.5f);
+        heatSetTargetTemp(heaterIndex, ack_second_value() + 0.5f, FROM_HOST);
+        heaterIndex = BED;
+      }
 
-        if (ack_seen(heaterID[i]))
+      while (heaterIndex < MAX_HEATER_COUNT)
+      {
+        if (heaterDisplayIsValid(heaterIndex) && ack_seen(heaterID[heaterIndex]))
         {
-          heatSetCurrentTemp(i, ack_value() + 0.5f);
-          heatSetTargetTemp(i, ack_second_value() + 0.5f, FROM_HOST);
+          heatSetCurrentTemp(heaterIndex, ack_value() + 0.5f);
+          heatSetTargetTemp(heaterIndex, ack_second_value() + 0.5f, FROM_HOST);
         }
+
+        heaterIndex++;
       }
 
       avoid_terminal = !infoSettings.terminal_ack;
@@ -619,12 +624,9 @@ void parseACK(void)
       speedQuerySetWait(false);
     }
     // parse and store M106, fan speed
-    else if (ack_starts_with("M106 P"))
+    else if (ack_starts_with("M106"))
     {
-      uint8_t i = ack_value();
-
-      if (ack_continue_seen("S"))
-        fanSetCurSpeed(i, ack_value());
+      fanSetCurSpeed(ack_continue_seen("P") ? ack_value() : 0, ack_seen("S") ? ack_value() : 100);
     }
     // parse and store M710, controller fan
     else if (ack_starts_with("M710"))
@@ -662,7 +664,7 @@ void parseACK(void)
     // parse and store M23, select SD file
     else if (infoMachineSettings.onboardSD == ENABLED && ack_starts_with("File opened:"))
     {
-      // NOTE: this block is not reached in case of printing from onboard media because printStart() will call
+      // NOTE: this block is not reached in case of printing from onboard media because printStartPrepare() will call
       //       request_M23_M36() that will be managed in parseAck() by the block "onboard media gcode command response"
 
       // parse file name.
@@ -696,7 +698,7 @@ void parseACK(void)
           if (ack_continue_seen("byte"))  // received "SD printing byte"
             setPrintProgressData(ack_value(), ack_second_value());
           else  // received "Not SD printing"
-            setPrintAbort();
+            printAbortCease();
         }
       }
       // parse and store M24, printing from (remote) onboard media completed
@@ -754,8 +756,7 @@ void parseACK(void)
         levelingSetProbedPoint(-1, -1, ack_value());  // save probed Z value
         sprintf(tmpMsg, "%s\nStandard Deviation: %0.5f", (char *)getDialogMsgStr(), ack_value());
 
-        setDialogText((uint8_t *)"Repeatability Test", (uint8_t *)tmpMsg, LABEL_CONFIRM, LABEL_NULL);
-        showDialog(DIALOG_TYPE_INFO, NULL, NULL, NULL);
+        popupReminder(DIALOG_TYPE_INFO, (uint8_t *)"Repeatability Test", (uint8_t *)tmpMsg);
       }
     }
     // parse and store M211 or M503, software endstops state (e.g. from Probe Offset, MBL, Mesh Editor menus)
@@ -932,7 +933,7 @@ void parseACK(void)
     // parse and store FW retraction (M207) and FW recover (M208)
     else if (ack_starts_with("M207 S") || ack_starts_with("M208 S"))
     {
-      PARAMETER_NAME param = ack_starts_with("207") ? P_FWRETRACT : P_FWRECOVER;
+      PARAMETER_NAME param = ack_starts_with("M207") ? P_FWRETRACT : P_FWRECOVER;
 
       if (ack_seen("S")) setParameter(param, 0, ack_value());
       if (ack_seen("W")) setParameter(param, 1, ack_value());
@@ -973,6 +974,47 @@ void parseACK(void)
 
         if (ack_continue_seen("H"))
           setMpcFilHeatCapacity(index, ack_value());
+      }
+    }
+    // parse and store input shaping parameters (only for Marlin)
+    else if (ack_starts_with("M593") && infoMachineSettings.firmwareType == FW_MARLIN)
+    {
+      // M593 accepts its parameters in any order,
+      // if both X and Y axis are missing than the rest
+      // of the parameters are referring to each axis
+
+      enum
+      {
+        SET_NONE = 0B00,
+        SET_X = 0B01,
+        SET_Y = 0B10,
+        SET_BOTH = 0B11
+      } setAxis = SET_NONE;
+
+      float pValue;
+
+      if (ack_seen("X")) setAxis |= SET_X;
+      if (ack_seen("Y")) setAxis |= SET_Y;
+      if (setAxis == SET_NONE) setAxis = SET_BOTH;
+
+      if (ack_seen("F"))
+      {
+        pValue = ack_value();
+
+        if (setAxis & SET_X)
+            setParameter(P_INPUT_SHAPING, 0, pValue);
+        if (setAxis & SET_Y)
+            setParameter(P_INPUT_SHAPING, 2, pValue);
+      }
+
+      if (ack_seen("D"))
+      {
+        pValue = ack_value();
+
+        if (setAxis & SET_X)
+            setParameter(P_INPUT_SHAPING, 1, pValue);
+        if (setAxis & SET_Y)
+            setParameter(P_INPUT_SHAPING, 3, pValue);
       }
     }
     // parse and store Delta configuration / Delta tower angle (M665) and Delta endstop adjustments (M666)
@@ -1304,18 +1346,18 @@ void parseACK(void)
 
 void parseRcvGcode(void)
 {
-  for (SERIAL_PORT_INDEX i = PORT_2; i < SERIAL_PORT_COUNT; i++)  // scan all the supplementary serial ports
+  for (SERIAL_PORT_INDEX portIndex = PORT_2; portIndex < SERIAL_PORT_COUNT; portIndex++)  // scan all the supplementary serial ports
   {
     // forward data only if serial port is enabled
-    if (infoSettings.serial_port[i] > 0
+    if (infoSettings.serial_port[portIndex] > 0
         #ifdef SERIAL_DEBUG_PORT
-          && serialPort[i].port != SERIAL_DEBUG_PORT  // do not forward data to serial debug port
+          && serialPort[portIndex].port != SERIAL_DEBUG_PORT  // do not forward data from serial debug port
         #endif
         )
     {
-      while (syncL2CacheFromL1(serialPort[i].port))  // if some data are retrieved from L1 to L2 cache
+      while (syncL2CacheFromL1(serialPort[portIndex].port))  // if some data are retrieved from L1 to L2 cache
       {
-        storeCmdFromUART(i, dmaL2Cache);
+        handleCmd(dmaL2Cache, portIndex);
       }
     }
   }

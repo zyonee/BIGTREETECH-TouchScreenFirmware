@@ -106,7 +106,7 @@ Main branch: **Master**
 ## Marlin Dependencies
 
 Minimum Marlin firmware version: **2.1.1**<br>
-Distribution date: **2022-08-06**<br>
+Distribution date: **2022-09-22**<br>
 Firmware source: https://github.com/MarlinFirmware/Marlin/releases<br>
 
 To use all the features and functionalities supported by the TFT,
@@ -120,6 +120,7 @@ the following options must be enabled in Marlin firmware.
 `AUTO_REPORT_POSITION` (in Configuration_adv.h)<br>
 `M115_GEOMETRY_REPORT` (in Configuration_adv.h)<br>
 `M114_DETAIL` (in Configuration_adv.h)<br>
+`EXTENDED_CAPABILITIES_REPORT` (in Configuration_adv.h)<br>
 `REPORT_FAN_CHANGE` (in Configuration_adv.h)<br>
 
 **Options to support printing from onboard media:**
@@ -228,6 +229,10 @@ The following sections provide all the resources needed for the firmware update 
 Precompiled firmwares are available on [`Copy to SD Card root directory to update`](https://github.com/bigtreetech/BIGTREETECH-TouchScreenFirmware/tree/master/Copy%20to%20SD%20Card%20root%20directory%20to%20update) folder.
 
 For **BTT TFTs**, the firmwares use the naming convention `BIGTREE_TFT*_V*.*.*.x.bin`.
+
+For **BTT GD TFTs**, the firmwares use the naming convention `BIGTREE_GD_TFT*_V*.*.*.x.bin`
+
+![GD Chip](https://user-images.githubusercontent.com/46979052/187049050-2bf05b07-3a1a-43c9-a375-6ef53cf48850.png)
 
 For **MKS TFTs**:
 
