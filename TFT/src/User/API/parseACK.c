@@ -55,8 +55,8 @@ struct HOST_ACTION
 {
   char prompt_begin[30];
   char prompt_button[2][20];
-  bool prompt_show;         // show popup reminder or not
-  uint8_t button;           // number of buttons
+  bool prompt_show;           // show popup reminder or not
+  uint8_t button;             // number of buttons
 } hostAction;
 
 void setHostDialog(bool isHostDialog)
@@ -74,7 +74,8 @@ void setCurrentAckSrc(SERIAL_PORT_INDEX portIndex)
   ack_port_index = portIndex;
 }
 
-static bool ack_starts_with(const char * str)  // checks if the cache starts with the given parameter
+// checks if the cache starts with the given parameter
+static bool ack_starts_with(const char * str)
 {
   uint16_t i = 0;
 
@@ -90,10 +91,11 @@ static bool ack_starts_with(const char * str)  // checks if the cache starts wit
   return false;
 }
 
+// searches the first appearance of the given string from the start
+// of the cache, on success sets the current index of the cache
+// ("ack_index") next to the position where the found string ended
 static bool ack_seen(const char * str)
-{ // searches the first appearance of the given string from the start
-  // of the cache, on success sets the current index of the cache
-  // ("ack_index") next to the position where the found string ended
+{
   uint16_t i;
 
   for (ack_index = 0, i = 0; ack_cache[ack_index] != '\0'; ack_index++, i = 0)
@@ -111,9 +113,10 @@ static bool ack_seen(const char * str)
   return false;
 }
 
+// unlike "ack_seen()", this starts the search from the current index, where previous
+// search left off and retains "ack_index" if the searched string is not found
 static bool ack_continue_seen(const char * str)
-{ // unlike "ack_seen()", this starts the search from the current index, where previous
-  // search left off and retains "ack_index" if the searched string is not found
+{
   uint16_t tmp_index;
   uint16_t i;
 
@@ -214,7 +217,7 @@ bool processKnownEcho(void)
   }
 
   // display the busy indicator
-  busyIndicator(SYS_STATUS_BUSY);
+  drawBusySign();
 
   if (isKnown)
   {
@@ -243,18 +246,18 @@ void hostActionCommands(void)
 
     if (ack_continue_seen("Time Left"))  // parsing printing time left
     {
-      // format: Time Left <XX>h<YY>m<ZZ>s (e.g. Time Left 02h04m06s)
+      // format: "Time Left <XX>h<YY>m<ZZ>s" (e.g. "Time Left 02h04m06s")
       parsePrintRemainingTime((char *)ack_cache + ack_index);
     }
     else if (ack_continue_seen("Layer Left"))  // parsing printing layer left
     {
-      // format: Layer Left <XXXX>/<YYYY> (e.g. Layer Left 51/940)
+      // format: "Layer Left <XXXX>/<YYYY>" (e.g. "Layer Left 51/940")
       setPrintLayerNumber(ack_value());
       setPrintLayerCount(ack_second_value());
     }
     else if (ack_continue_seen("Data Left"))  // parsing printing data left
     {
-      // format: Data Left <XXXX>/<YYYY> (e.g. Data Left 123/12345)
+      // format: "Data Left <XXXX>/<YYYY>" (e.g. "Data Left 123/12345")
       setPrintProgressData(ack_value(), ack_second_value());
     }
     else
@@ -365,10 +368,15 @@ void parseACK(void)
 
     bool avoid_terminal = false;
 
-    if (infoHost.connected == false)  // not connected to printer
+    //----------------------------------------
+    // TFT to printer connection handling
+    //----------------------------------------
+
+    if (infoHost.connected == false)
     {
       // parse error information even though not connected to printer
-      if (ack_seen(magic_error)) ackPopupInfo(magic_error);
+      if (ack_seen(magic_error))
+        ackPopupInfo(magic_error);
 
       // the first response should be such as "T:25/50\n"
       // the "T:0" response is specifically for Marlin when EXTRUDER_COUNT:0
@@ -381,9 +389,14 @@ void parseACK(void)
           break;
       }
 
-      if (infoSettings.ext_count < infoSettings.hotend_count) infoSettings.ext_count = infoSettings.hotend_count;
-      if (ack_seen(heaterID[BED])) infoSettings.bed_en = ENABLED;
-      if (ack_seen(heaterID[CHAMBER])) infoSettings.chamber_en = ENABLED;
+      if (infoSettings.ext_count < infoSettings.hotend_count)
+        infoSettings.ext_count = infoSettings.hotend_count;
+
+      if (ack_seen(heaterID[BED]))
+        infoSettings.bed_en = ENABLED;
+
+      if (ack_seen(heaterID[CHAMBER]))
+        infoSettings.chamber_en = ENABLED;
 
       updateNextHeatCheckTime();
 
@@ -402,11 +415,31 @@ void parseACK(void)
         storeCmd("M115\n");  // as last command to identify the FW type!
       }
 
-      infoHost.connected = true;
+      // 1) store on command queue the above gcodes to detect printer info
+      // 2) re-initialize infoHost when connected to avoid this code branch is executed again
+      // 3) set requestCommandInfo.inJson to "false" and detect the presence of Marlin ADVANCED_OK
+      //    feature (if any) and its command queue size
+      // 4) finally, set listening mode flag according to its last state stored in flash
+      //
+      // NOTES:
+      //   - 3) is applied only after all gcodes in 1) have been sent and their responses received and processed
+      //   - InfoHost_UpdateListeningMode() must always be invoked as last due to no gcode could be sent in case
+      //     listening mode is enabled (e.g. a TFT freeze will occur in case detectAdvancedOk() is invoked after
+      //     InfoHost_UpdateListeningMode())
+
+      InfoHost_Init(true);
+
       requestCommandInfo.inJson = false;
+
+      detectAdvancedOk();
+
+      InfoHost_UpdateListeningMode();
     }
 
-    /* onboard media gcode command response start */
+    //----------------------------------------
+    // Onboard media response handling (response requested by the use of setRequestCommandInfo() function)
+    //----------------------------------------
+
     if (requestCommandInfo.inWaitResponse)
     {
       if (ack_seen(requestCommandInfo.startMagic))
@@ -434,6 +467,7 @@ void parseACK(void)
         }
 
         BUZZER_PLAY(SOUND_ERROR);
+
         goto parse_end;
       }
 
@@ -453,7 +487,7 @@ void parseACK(void)
           requestCommandInfo.inResponse = false;
         }
       }
-      else if (strlen(requestCommandInfo.cmd_rev_buf) + strlen(ack_cache) < CMD_MAX_REV)
+      else if (strlen(requestCommandInfo.cmd_rev_buf) + ack_len < CMD_MAX_REV)
       {
         strcat(requestCommandInfo.cmd_rev_buf, ack_cache);
 
@@ -470,14 +504,26 @@ void parseACK(void)
         ackPopupInfo(magic_error);
       }
 
-      infoHost.wait = false;
       requestCommandInfo.inJson = false;
+
+      if (requestCommandInfo.done)  // if command parsing is completed
+      {
+        // if RepRap or "ok" (e.g. in Marlin) is used as stop magic keyword,
+        // proceed with generic OK response handling to update infoHost.tx_slots and infoHost.tx_count
+        //
+        if (infoMachineSettings.firmwareType == FW_REPRAPFW || ack_starts_with("ok"))
+          InfoHost_HandleOkAck(HOST_SLOTS_GENERIC_OK);
+      }
+
       goto parse_end;
     }
-    /* onboard media gcode command response end */
 
-    /* RepRap response handle */
-    if (!requestCommandInfo.inWaitResponse && !requestCommandInfo.inResponse && infoMachineSettings.firmwareType == FW_REPRAPFW)
+    //----------------------------------------
+    // RepRap response handling (response NOT requested by the use of setRequestCommandInfo() function)
+    //----------------------------------------
+
+    // check for a possible json response and eventually parse and process it
+    else if (!requestCommandInfo.inWaitResponse && infoMachineSettings.firmwareType == FW_REPRAPFW)
     {
       if (strchr(ack_cache, '{') != NULL)
         requestCommandInfo.inJson = true;
@@ -490,30 +536,56 @@ void parseACK(void)
       else
         rrfParseACK(ack_cache);
 
-      infoHost.wait = false;
+      // proceed with generic OK response handling to update infoHost.tx_slots and infoHost.tx_count
+      InfoHost_HandleOkAck(HOST_SLOTS_GENERIC_OK);
+
       goto parse_end;
     }
-    /* RepRap response handle end */
 
-    if (ack_starts_with("ok"))  // handle "ok" response
-    { // it is checked first (and not later on) because it is the most frequent response during printing
-      infoHost.wait = false;
+    //----------------------------------------
+    // "ok" response handling
+    //----------------------------------------
 
-      // if regular "ok\n" response or ADVANCED_OK response (Marlin) (e.g. "ok N10 P15 B3\n")
-      if ((ack_cache[ack_index] == '\n') || (ack_continue_seen("P") && ack_continue_seen("B")))
-        goto parse_end;  // there's nothing else to check for
+    // it is checked first (and not later on) because it is the most frequent response during printing
+    if (ack_starts_with("ok"))
+    {
+      // if regular OK response ("ok\n")
+      if (ack_cache[ack_index] == '\n')
+      {
+        InfoHost_HandleOkAck(infoSettings.tx_slots);
+
+        goto parse_end;  // nothing else to do
+      }
+
+      // if ADVANCED_OK response (e.g. "ok N10 P15 B3\n"). Required "ADVANCED_OK" in Marlin
+      if (ack_continue_seen("P") && ack_continue_seen("B"))
+      {
+        InfoHost_HandleOkAck(ack_value());
+
+        goto parse_end;  // nothing else to do
+      }
+
+      // if here, it is a temperature response (e.g. "ok T:16.13 /0.00 B:16.64 /0.00 @:0 B@:0\n").
+      // Proceed with generic OK response handling to update infoHost.tx_slots and infoHost.tx_count
+      // and then continue applying the next matching patterns to handle the temperature response
+      InfoHost_HandleOkAck(HOST_SLOTS_GENERIC_OK);
     }
 
-    if (ack_starts_with("wait"))  // suppress "wait" from terminal
-    { // it is checked second (and not later on) because it is the most frequent response during printer idle
-      avoid_terminal = !infoSettings.terminal_ack;
+    //----------------------------------------
+    // "wait" response handling
+    //----------------------------------------
+
+    // it is checked second (and not later on) because it is the most frequent response during printer idle
+    if (ack_starts_with("wait"))
+    {
+      avoid_terminal = !infoSettings.terminal_ack;  // suppress "wait" from terminal
     }
 
     //----------------------------------------
     // Pushed / polled / on printing parsed responses
     //----------------------------------------
 
-    // parse and store temperatures
+    // parse and store temperatures (e.g. "ok T:16.13 /0.00 B:16.64 /0.00 @:0 B@:0\n")
     else if ((ack_seen("@") && ack_seen("T:")) || ack_seen("T0:"))
     {
       uint8_t heaterIndex = NOZZLE0;
@@ -543,16 +615,17 @@ void parseACK(void)
     else if (ack_starts_with("X:") || ack_seen("C: X:"))  // Smoothieware axis position starts with "C: X:"
     {
       coordinateSetAxisActual(X_AXIS, ack_value());
+
       if (ack_continue_seen("Y:"))
       {
         coordinateSetAxisActual(Y_AXIS, ack_value());
+
         if (ack_continue_seen("Z:"))
         {
           coordinateSetAxisActual(Z_AXIS, ack_value());
+
           if (ack_continue_seen("E:"))
-          {
             coordinateSetAxisActual(E_AXIS, ack_value());
-          }
         }
       }
 
@@ -597,6 +670,7 @@ void parseACK(void)
     {
       if (ack_seen("S"))
         fanSetCurSpeed(MAX_COOLING_FAN_COUNT, ack_value());
+
       if (ack_seen("I"))
         fanSetCurSpeed(MAX_COOLING_FAN_COUNT + 1, ack_value());
 
@@ -606,7 +680,7 @@ void parseACK(void)
     else if (!infoMachineSettings.promptSupport && ack_seen("paused for user"))
     {
       popupDialog(DIALOG_TYPE_QUESTION, (uint8_t *)"Printer is Paused", (uint8_t *)"Paused for user\ncontinue?",
-                    LABEL_CONFIRM, LABEL_NULL, breakAndContinue, NULL, NULL);
+                  LABEL_CONFIRM, LABEL_NULL, breakAndContinue, NULL, NULL);
     }
     // parse host action commands. Required "HOST_ACTION_COMMANDS" and other settings in Marlin
     else if (ack_starts_with("//action:"))
@@ -732,8 +806,7 @@ void parseACK(void)
     {
       char tmpMsg[100];
 
-      strcpy (tmpMsg, "Mean: ");
-      sprintf (&tmpMsg[strlen(tmpMsg)], "%0.5f", ack_value());
+      sprintf(tmpMsg, "Mean: %0.5f", ack_value());
 
       if (ack_continue_seen("Min: "))
         sprintf(&tmpMsg[strlen(tmpMsg)], "\nMin: %0.5f", ack_value());
@@ -748,11 +821,12 @@ void parseACK(void)
     else if (ack_seen("Standard Deviation: "))
     {
       char tmpMsg[100];
+      char * dialogMsg = (char *)getDialogMsgStr();
 
-      if (memcmp((char *)getDialogMsgStr(), "Mean: ", 6) == 0)
+      if (memcmp(dialogMsg, "Mean: ", 6) == 0)
       {
         levelingSetProbedPoint(-1, -1, ack_value());  // save probed Z value
-        sprintf(tmpMsg, "%s\nStandard Deviation: %0.5f", (char *)getDialogMsgStr(), ack_value());
+        sprintf(tmpMsg, "%s\nStandard Deviation: %0.5f", dialogMsg, ack_value());
 
         popupReminder(DIALOG_TYPE_INFO, (uint8_t *)"Repeatability Test", (uint8_t *)tmpMsg);
       }
@@ -805,7 +879,7 @@ void parseACK(void)
       else
       {
         caseLightSetState(true);
-        caseLightSetBrightness(ack_value());
+        caseLightSetPercent(ack_value());
       }
     }
     // parse and store M420 V1 T1, mesh data (e.g. from Mesh Editor menu)
@@ -832,7 +906,7 @@ void parseACK(void)
       if (ack_seen("Z") || (ack_seen("Z:"))) setParameter(P_PROBE_OFFSET, AXIS_INDEX_Z, ack_value());
     }
     // parse G29 (ABL) + M118, ABL completed message (ABL, BBL, UBL) (e.g. from ABL menu)
-    else if (ack_seen("ABL Completed"))
+    else if (ack_starts_with("ABL Completed"))
     {
       ablUpdateStatus(true);
     }
@@ -847,8 +921,11 @@ void parseACK(void)
       float x = ack_value();
       float y = 0;
 
-      if (ack_continue_seen("Y: ")) y = ack_value();
-      if (ack_continue_seen("Z: ")) levelingSetProbedPoint(x, y, ack_value());  // save probed Z value
+      if (ack_continue_seen("Y: "))
+        y = ack_value();
+
+      if (ack_continue_seen("Z: "))
+        levelingSetProbedPoint(x, y, ack_value());  // save probed Z value
     }
     #if DELTA_PROBE_TYPE != 0
       // parse and store Delta calibration settings
@@ -856,17 +933,13 @@ void parseACK(void)
       {
         BUZZER_PLAY(SOUND_SUCCESS);
 
-          if (infoMachineSettings.EEPROM == 1)
-          {
-            popupDialog(DIALOG_TYPE_SUCCESS, LABEL_DELTA_CONFIGURATION, LABEL_EEPROM_SAVE_INFO,
-                        LABEL_CONFIRM, LABEL_CANCEL, saveEepromSettings, NULL, NULL);
-          }
-          else
-          {
-            popupReminder(DIALOG_TYPE_SUCCESS, LABEL_DELTA_CONFIGURATION, LABEL_PROCESS_COMPLETED);
-          }
-        }
-      #endif
+        if (infoMachineSettings.EEPROM == 1)
+          popupDialog(DIALOG_TYPE_SUCCESS, LABEL_DELTA_CONFIGURATION, LABEL_EEPROM_SAVE_INFO,
+                      LABEL_CONFIRM, LABEL_CANCEL, saveEepromSettings, NULL, NULL);
+        else
+          popupReminder(DIALOG_TYPE_SUCCESS, LABEL_DELTA_CONFIGURATION, LABEL_PROCESS_COMPLETED);
+      }
+    #endif
 
     //----------------------------------------
     // Parameter / M503 / M115 parsed responses
@@ -953,7 +1026,7 @@ void parseACK(void)
     {
       setParameter(P_AUTO_RETRACT, 0, ack_value());
     }
-    // parse and store hotend PID (M301), bed PID (M304)
+    // parse and store hotend PID (M301) and bed PID (M304)
     else if (ack_starts_with("M301") || ack_starts_with("M304"))
     {
       PARAMETER_NAME param = ack_starts_with("M301") ? P_HOTEND_PID : P_BED_PID;
@@ -1001,20 +1074,16 @@ void parseACK(void)
       {
         pValue = ack_value();
 
-        if (setAxis & SET_X)
-            setParameter(P_INPUT_SHAPING, 0, pValue);
-        if (setAxis & SET_Y)
-            setParameter(P_INPUT_SHAPING, 2, pValue);
+        if (setAxis & SET_X) setParameter(P_INPUT_SHAPING, 0, pValue);
+        if (setAxis & SET_Y) setParameter(P_INPUT_SHAPING, 2, pValue);
       }
 
       if (ack_seen("D"))
       {
         pValue = ack_value();
 
-        if (setAxis & SET_X)
-            setParameter(P_INPUT_SHAPING, 1, pValue);
-        if (setAxis & SET_Y)
-            setParameter(P_INPUT_SHAPING, 3, pValue);
+        if (setAxis & SET_X) setParameter(P_INPUT_SHAPING, 1, pValue);
+        if (setAxis & SET_Y) setParameter(P_INPUT_SHAPING, 3, pValue);
       }
     }
     // parse and store Delta configuration / Delta tower angle (M665) and Delta endstop adjustments (M666)
@@ -1280,7 +1349,7 @@ void parseACK(void)
       // newer Marlin (e.g. 2.0.9.3) returns this ACK for M900 command
       else if (ack_continue_seen("Advance K="))
       {
-        setParameter(P_LIN_ADV, heatGetCurrentTool(), ack_value());
+        setParameter(P_LIN_ADV, heatGetToolIndex(), ack_value());
       }
       else if (!processKnownEcho())  // if no known echo was found and processed, then popup the echo message
       {
@@ -1307,6 +1376,23 @@ void parseACK(void)
         setParameter(P_FILAMENT_DIAMETER, 0, getParameter(P_FILAMENT_DIAMETER, 1) > 0.01f ? 1 : 0);
       }
     }
+    // check for motherboard reset (external, software, etc)
+    else if (ack_seen("Reset"))
+    {
+      if (ack_seen("External") || ack_seen("Software") || ack_seen("Watchdog") || ack_seen("Brown out"))
+      {
+        // proceed to reset the command queue, host status, fan speeds and load default machine settings.
+        // These functions will also trigger the query of temperatures which together with the resets
+        // done will also trigger the query of the motherboard capabilities and settings. It is necessary
+        // to do so because after the motherboard reset things might have changed (ex. FW update by M997)
+
+        clearCmdQueue();
+        InfoHost_Init(false);
+        initMachineSettings();
+        fanResetSpeed();
+        coordinateSetKnown(false);
+      }
+    }
 
   parse_end:
     if (!avoid_terminal && MENU_IS(menuTerminal))
@@ -1315,7 +1401,7 @@ void parseACK(void)
     #ifdef SERIAL_PORT_2
       if (ack_port_index == PORT_1)
       {
-        if (infoHost.wait == false && !ack_starts_with("ok"))
+        if (infoHost.tx_count == 0 && !ack_starts_with("ok"))
         { // if the ACK message is not related to a gcode originated by the TFT and it is not "ok", it is a spontaneous
           // ACK message so pass it to all the supplementary serial ports (since these messages came unrequested)
           Serial_Forward(SUP_PORTS, ack_cache);
@@ -1326,9 +1412,9 @@ void parseACK(void)
         // forward the message to that supplementary serial port
         Serial_Forward(ack_port_index, ack_cache);
 
-        // if "ok" has been received, reset ACK port index to avoid wrong relaying (in case no more commands will
-        // be sent by interfaceCmd) of any successive spontaneous ACK message
-        if (infoHost.wait == false)
+        // if no pending gcode (all "ok" have been received), reset ACK port index to avoid wrong relaying (in case no
+        // more commands will be sent by interfaceCmd) of any successive spontaneous ACK message
+        if (infoHost.tx_count == 0)
           ack_port_index = PORT_1;
       }
     #endif

@@ -721,9 +721,12 @@ const uint8_t* _GUI_DispLenString(int16_t x, int16_t y, const uint8_t *p, uint16
     getCharacterInfo(p, &info);
     if (curPixelWidth + info.pixelWidth > pixelWidth)
     {
-      if (truncate)
+      if (truncate && *(p + 1))  // check if there is at least 1 more character
       {
-        getCharacterInfo((uint8_t *)"…", &info);
+        // truncate indicator if 2 more characters OR not enough space for current character in reserved space
+        if (*(p + 2) || info.pixelWidth > BYTE_HEIGHT)
+          getCharacterInfo((uint8_t *)"…", &info);
+
         GUI_DispOne(x, y, &info);
       }
       return p;
@@ -1001,7 +1004,7 @@ void GUI_DispFloat(int16_t x, int16_t y, float num, uint8_t llen, uint8_t rlen, 
 void _GUI_DispLabel(int16_t x, int16_t y, uint16_t index)
 {
   uint8_t tempstr[MAX_LANG_LABEL_LENGTH];
-  if (loadLabelText((uint8_t*)&tempstr, index) == false) return;
+  if (loadLabelText(tempstr, index) == false) return;
   _GUI_DispString(x, y, tempstr);
 }
 

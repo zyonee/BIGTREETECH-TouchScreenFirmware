@@ -3,6 +3,7 @@
 
     // config.ini Parameter Settings - Screen Settings and Feature Settings
     #define STRING_LANGUAGE               "Portugues"
+    #define STRING_ADVANCED_OK            "Advanced OK"
     #define STRING_EMULATED_M600          "Emulated M600"
     #define STRING_EMULATED_M109_M190     "Emulated M109 / M190"
     #define STRING_EVENT_LED              "Event LED"
@@ -161,7 +162,6 @@
     #define STRING_SHUTTING_DOWN          "Shutting down..."
     #define STRING_WAIT_TEMP_SHUT_DOWN    "Wait for the hotend temperature to be lower than %d ℃" // Wait for the temperature of hotend to be lower than 50℃
     #define STRING_POWER_FAILED           "Continuar a imprimir?"
-    #define STRING_PROCESS_RUNNING        "Process already running!"
     #define STRING_PROCESS_COMPLETED      "Process completed!"
     #define STRING_PROCESS_ABORTED        "Process aborted!"
 
@@ -336,6 +336,7 @@
     #define STRING_TUNING                 "Tuning"
     #define STRING_MPC                    "MPC"
     #define STRING_MPC_TITLE              "MPC autotune"
+    #define STRING_MPC_METHOD             "Método:"
     #define STRING_PID                    "PID"
     #define STRING_PID_TITLE              "PID autotune"
     #define STRING_TUNE_START_INFO        "Autotune may take some time to complete.\nContinue?"

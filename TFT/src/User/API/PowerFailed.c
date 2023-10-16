@@ -74,7 +74,7 @@ bool powerFailedInitData(void)
     }
   }
 
-  mustStoreCacheCmd("%s\n", tool_change[infoBreakPoint.tool]);
+  mustStoreCacheCmd("%s\n", toolChange[infoBreakPoint.tool]);
 
   for (uint8_t i = MAX_HEATER_COUNT - 1; i >= MAX_HOTEND_COUNT; i--)  // Bed & Chamber infoCacheCmd.queue[0 - 1]
   {
@@ -201,7 +201,7 @@ void powerFailedCache(uint32_t offset)
     {
       infoBreakPoint.target[i] = heatGetTargetTemp(i);
     }
-    infoBreakPoint.tool = heatGetCurrentTool();
+    infoBreakPoint.tool = heatGetToolIndex();
 
     for (uint8_t i = 0; i < infoSettings.fan_count; i++)
     {

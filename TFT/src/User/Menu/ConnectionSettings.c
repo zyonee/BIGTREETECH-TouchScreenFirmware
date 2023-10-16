@@ -5,18 +5,12 @@ SERIAL_PORT_INDEX portIndex = 0;  // index on serialPort array
 
 void updateListeningMode(MENUITEMS * menu)
 {
-  if (GET_BIT(infoSettings.general_settings, INDEX_LISTENING_MODE) == 1)
-  {
-    menu->items[4].label.index = LABEL_OFF;
-    reminderMessage(LABEL_LISTENING, SYS_STATUS_LISTENING);
-  }
-  else
-  {
-    menu->items[4].label.index = LABEL_ON;
-  }
+  menu->items[4].label.index = (GET_BIT(infoSettings.general_settings, INDEX_LISTENING_MODE) == 1) ? LABEL_OFF : LABEL_ON;
+
+  InfoHost_UpdateListeningMode();  // update listening mode
 }
 
-// Set uart pins to input, free uart
+// set uart pins to input, free uart
 void menuDisconnect(void)
 {
   GUI_Clear(infoSettings.bg_color);
@@ -75,8 +69,8 @@ void menuBaudrate(void)
   {
     curIndex = listViewGetSelectedIndex();
 
-    if (curIndex < size && curIndex != curItem)
-    {  // has changed
+    if (curIndex < size && curIndex != curItem)  // if changed
+    {
       totalItems[curItem].icon = CHARICON_UNCHECKED;
       listViewRefreshItem(curItem);  // refresh unchecked status
       curItem = curIndex;
@@ -91,7 +85,7 @@ void menuBaudrate(void)
     loopProcess();
   }
 
-  saveSettings();  // Save settings
+  saveSettings();  // save settings
 }
 
 void menuSerialPorts(void)

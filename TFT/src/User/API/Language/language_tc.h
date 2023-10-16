@@ -3,6 +3,7 @@
 
     // config.ini Parameter Settings - Screen Settings and Feature Settings
     #define STRING_LANGUAGE               "正體中文"
+    #define STRING_ADVANCED_OK            "Advanced OK"
     #define STRING_EMULATED_M600          "Emulated M600"
     #define STRING_EMULATED_M109_M190     "Emulated M109 / M190"
     #define STRING_EVENT_LED              "Event LED"
@@ -161,7 +162,6 @@
     #define STRING_SHUTTING_DOWN          "關機中"
     #define STRING_WAIT_TEMP_SHUT_DOWN    "噴頭降溫中，直到%d ℃時自動關機" // The length of the info line is 24 characters, so the "temperatureof" will automatically be divided into "temperature of..."
     #define STRING_POWER_FAILED           "要繼續列印嗎？" //Question Sign
-    #define STRING_PROCESS_RUNNING        "正在運行,請稍後"
     #define STRING_PROCESS_COMPLETED      "處理已完成!"
     #define STRING_PROCESS_ABORTED        "處理已被中斷!"
 
@@ -336,6 +336,7 @@
     #define STRING_TUNING                 "调整"
     #define STRING_MPC                    "MPC"
     #define STRING_MPC_TITLE              "MPC自动整定"
+    #define STRING_MPC_METHOD             "方法:"
     #define STRING_PID                    "PID"
     #define STRING_PID_TITLE              "PID自动整定"
     #define STRING_TUNE_START_INFO        "开始自动整定,需要几分钟来完成,是否继续?"

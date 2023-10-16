@@ -20,29 +20,31 @@ const char *const xyzMoveCmd[] = {X_MOVE_GCODE, Y_MOVE_GCODE, Z_MOVE_GCODE};
 static uint8_t item_moveLen_index = 1;
 AXIS nowAxis = X_AXIS;
 
-void storeMoveCmd(AXIS xyz, int8_t direction)
+void storeMoveCmd(const AXIS xyz, const float amount)
 {
-  // if invert is true, 'direction' multiplied by -1
-  storeCmd(xyzMoveCmd[xyz], (GET_BIT(infoSettings.inverted_axis, xyz) ? -direction : direction) * moveLenSteps[item_moveLen_index],
+  // if invert is true, use 'amount' multiplied by -1
+  storeCmd(xyzMoveCmd[xyz], GET_BIT(infoSettings.inverted_axis, xyz) ? -amount : amount,
            ((xyz != Z_AXIS) ? infoSettings.xy_speed[infoSettings.move_speed] : infoSettings.z_speed[infoSettings.move_speed]));
 
-  nowAxis = xyz;  // update now axis be selected
+  nowAxis = xyz;  // update now axis
 }
 
 void drawXYZ(void)
 {
+  if (getReminderStatus() != SYS_STATUS_IDLE || toastRunning()) return;
+
   char tempstr[30];
 
   GUI_SetColor(infoSettings.status_color);
 
   sprintf(tempstr, "X:%.2f  ", coordinateGetAxisActual(X_AXIS));
-  GUI_DispString(START_X + (OFFSET + 0) * SPACE_X + (OFFSET + 0) * ICON_WIDTH, (ICON_START_Y - BYTE_HEIGHT) / 2, (uint8_t *)tempstr);
+  GUI_DispString(START_X + (OFFSET + 0) * SPACE_X + (OFFSET + 0) * ICON_WIDTH, (TITLE_END_Y - BYTE_HEIGHT) / 2, (uint8_t *)tempstr);
 
   sprintf(tempstr, "Y:%.2f  ", coordinateGetAxisActual(Y_AXIS));
-  GUI_DispString(START_X + (OFFSET + 1) * SPACE_X + (OFFSET + 1) * ICON_WIDTH, (ICON_START_Y - BYTE_HEIGHT) / 2, (uint8_t *)tempstr);
+  GUI_DispString(START_X + (OFFSET + 1) * SPACE_X + (OFFSET + 1) * ICON_WIDTH, (TITLE_END_Y - BYTE_HEIGHT) / 2, (uint8_t *)tempstr);
 
   sprintf(tempstr, "Z:%.2f  ", coordinateGetAxisActual(Z_AXIS));
-  GUI_DispString(START_X + (OFFSET + 2) * SPACE_X + (OFFSET + 2) * ICON_WIDTH, (ICON_START_Y - BYTE_HEIGHT) / 2, (uint8_t *)tempstr);
+  GUI_DispString(START_X + (OFFSET + 2) * SPACE_X + (OFFSET + 2) * ICON_WIDTH, (TITLE_END_Y - BYTE_HEIGHT) / 2, (uint8_t *)tempstr);
 
   GUI_SetColor(infoSettings.font_color);
 }
@@ -65,20 +67,20 @@ void menuMove(void)
     {
       #ifdef ALTERNATIVE_MOVE_MENU
         {ICON_Z_DEC,                   LABEL_Z_DEC},
-        {ICON_Y_INC,                   LABEL_Y_INC},
+        {ICON_Y_INC,                   LABEL_Y_DEC},
         {ICON_Z_INC,                   LABEL_Z_INC},
         {ICON_01_MM,                   LABEL_01_MM},
         {ICON_X_DEC,                   LABEL_X_DEC},
-        {ICON_Y_DEC,                   LABEL_Y_DEC},
+        {ICON_Y_DEC,                   LABEL_Y_INC},
         {ICON_X_INC,                   LABEL_X_INC},
         {ICON_BACK,                    LABEL_BACK},
       #else
         {ICON_X_INC,                   LABEL_X_INC},
-        {ICON_Y_INC,                   LABEL_Y_INC},
+        {ICON_Y_DEC,                   LABEL_Y_INC},
         {ICON_Z_INC,                   LABEL_Z_INC},
         {ICON_01_MM,                   LABEL_01_MM},
         {ICON_X_DEC,                   LABEL_X_DEC},
-        {ICON_Y_DEC,                   LABEL_Y_DEC},
+        {ICON_Y_INC,                   LABEL_Y_DEC},
         {ICON_Z_DEC,                   LABEL_Z_DEC},
         {ICON_BACK,                    LABEL_BACK},
       #endif
@@ -87,6 +89,8 @@ void menuMove(void)
 
   KEY_VALUES key_num = KEY_IDLE;
 
+  float amount = moveLenSteps[item_moveLen_index];
+
   mustStoreCmd("G91\n");
   mustStoreCmd("M114\n");
 
@@ -94,12 +98,12 @@ void menuMove(void)
   uint8_t table[TOTAL_AXIS][2] =
     #ifdef ALTERNATIVE_MOVE_MENU
       /*-------*-------*-------*---------*
-       | Z-(0) | Y+(1) | Z+(2) | unit(3) |
+       | Z-(0) | Y-(1) | Z+(2) | unit(3) |
        *-------*-------*-------*---------*
-       | X-(4) | Y-(5) | X+(6) | back(7) |
+       | X-(4) | Y+(5) | X+(6) | back(7) |
        *-------*-------*-------*---------*
        |X+ X-  |Y+ Y-  |Z+ Z-            */
-      {{6, 4}, {1, 5}, {2, 0}}
+      {{6, 4}, {5, 1}, {2, 0}}
     #else
       /*-------*-------*-------*---------*
        | X+(0) | Y+(1) | Z+(2) | unit(3) |
@@ -134,48 +138,55 @@ void menuMove(void)
   while (MENU_IS(menuMove))
   {
     key_num = menuKeyGetValue();
+
     switch (key_num)
     {
       #ifdef ALTERNATIVE_MOVE_MENU
-        case KEY_ICON_0: storeMoveCmd(Z_AXIS, -1); break;  // Z move down if no invert
-        case KEY_ICON_1: storeMoveCmd(Y_AXIS, 1); break;   // Y move increase if no invert
-        case KEY_ICON_2: storeMoveCmd(Z_AXIS, 1); break;   // Z move up if no invert
+        case KEY_ICON_0: storeMoveCmd(Z_AXIS, -amount); break;  // Z move down if no invert
+        case KEY_ICON_1: storeMoveCmd(Y_AXIS, -amount); break;  // Y move decrease if no invert
+        case KEY_ICON_2: storeMoveCmd(Z_AXIS, amount); break;   // Z move up if no invert
 
         case KEY_ICON_3:
           item_moveLen_index = (item_moveLen_index + 1) % ITEM_MOVE_LEN_NUM;
           moveItems.items[key_num] = itemMoveLen[item_moveLen_index];
+
           menuDrawItem(&moveItems.items[key_num], key_num);
+
+          amount = moveLenSteps[item_moveLen_index];
           break;
 
-        case KEY_ICON_4: storeMoveCmd(X_AXIS, -1); break;  // X move decrease if no invert
-        case KEY_ICON_5: storeMoveCmd(Y_AXIS, -1); break;  // Y move decrease if no invert
-        case KEY_ICON_6: storeMoveCmd(X_AXIS, 1); break;   // X move increase if no invert
+        case KEY_ICON_4: storeMoveCmd(X_AXIS, -amount); break;  // X move decrease if no invert
+        case KEY_ICON_5: storeMoveCmd(Y_AXIS, amount); break;   // Y move increase if no invert
+        case KEY_ICON_6: storeMoveCmd(X_AXIS, amount); break;   // X move increase if no invert
 
         case KEY_ICON_7: CLOSE_MENU(); break;
       #else
-        case KEY_ICON_0: storeMoveCmd(X_AXIS, 1); break;   // X move increase if no invert
-        case KEY_ICON_1: storeMoveCmd(Y_AXIS, 1); break;   // Y move increase if no invert
-        case KEY_ICON_2: storeMoveCmd(Z_AXIS, 1); break;   // Z move up if no invert
+        case KEY_ICON_0: storeMoveCmd(X_AXIS, amount); break;   // X move increase if no invert
+        case KEY_ICON_1: storeMoveCmd(Y_AXIS, amount); break;   // Y move increase if no invert
+        case KEY_ICON_2: storeMoveCmd(Z_AXIS, amount); break;   // Z move up if no invert
 
         case KEY_ICON_3:
           item_moveLen_index = (item_moveLen_index + 1) % ITEM_MOVE_LEN_NUM;
           moveItems.items[key_num] = itemMoveLen[item_moveLen_index];
+
           menuDrawItem(&moveItems.items[key_num], key_num);
+
+          amount = moveLenSteps[item_moveLen_index];
           break;
 
-        case KEY_ICON_4: storeMoveCmd(X_AXIS, -1); break;  // X move decrease if no invert
-        case KEY_ICON_5: storeMoveCmd(Y_AXIS, -1); break;  // Y move decrease if no invert
-        case KEY_ICON_6: storeMoveCmd(Z_AXIS, -1); break;  // Z move down if no invert
+        case KEY_ICON_4: storeMoveCmd(X_AXIS, -amount); break;  // X move decrease if no invert
+        case KEY_ICON_5: storeMoveCmd(Y_AXIS, -amount); break;  // Y move decrease if no invert
+        case KEY_ICON_6: storeMoveCmd(Z_AXIS, -amount); break;  // Z move down if no invert
 
         case KEY_ICON_7: CLOSE_MENU(); break;
       #endif
 
         case KEY_INCREASE:
-          storeMoveCmd(nowAxis, 1);
+          storeMoveCmd(nowAxis, amount);
           break;
 
         case KEY_DECREASE:
-          storeMoveCmd(nowAxis, -1);
+          storeMoveCmd(nowAxis, -amount);
           break;
 
         default:

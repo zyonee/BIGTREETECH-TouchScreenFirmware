@@ -24,9 +24,7 @@ const char * const baudrateNames[BAUDRATE_COUNT] = {"OFF", "2400", "9600", "1920
 
 static inline void Serial_InitPrimary(void)
 {
-  infoHost.connected = infoHost.wait = false;
-  infoHost.status = HOST_STATUS_IDLE;
-  reminderMessage(LABEL_UNCONNECTED, SYS_STATUS_DISCONNECTED);
+  InfoHost_Init(false);  // initialize infoHost when disconnected
 
   Serial_Config(serialPort[PORT_1].port, serialPort[PORT_1].cacheSize, baudrateValues[infoSettings.serial_port[PORT_1]]);
 }
@@ -112,8 +110,7 @@ void Serial_Forward(SERIAL_PORT_INDEX portIndex, const char * msg)
     Serial_Put(SERIAL_DEBUG_PORT, msg);
   #endif
 
-  uint16_t msgLen = MENU_IS(menuTerminal ? strlen(msg) : 0);  // retrieve message lenght if Terminal menu is currently displayed
-  uint8_t portCount = SERIAL_PORT_COUNT;                      // by default, select all the serial ports
+  uint8_t portCount = SERIAL_PORT_COUNT;  // by default, select all the serial ports
 
   if (portIndex == ALL_PORTS)         // if ALL_PORTS, forward the message to all the enabled serial ports
     portIndex = PORT_1;
@@ -132,51 +129,58 @@ void Serial_Forward(SERIAL_PORT_INDEX portIndex, const char * msg)
           && serialPort[portIndex].port != SERIAL_DEBUG_PORT  // do not forward data to serial debug port
         #endif
         )
-    {
       Serial_Put(serialPort[portIndex].port, msg);  // pass on the message to the port
-
-      if (msgLen != 0)  // if Terminal menu is currently displayed
-        terminalCache(msg, msgLen, portIndex, SRC_TERMINAL_GCODE);
-    }
   }
+}
+
+uint16_t Serial_GetReadingIndex(SERIAL_PORT_INDEX portIndex)
+{
+  if (!WITHIN(portIndex, PORT_1, SERIAL_PORT_COUNT - 1))
+    return 0;
+
+  return dmaL1Data[portIndex].rIndex;
 }
 
 uint16_t Serial_Get(SERIAL_PORT_INDEX portIndex, char * buf, uint16_t bufSize)
 {
   // if port index is out of range or no data to read from L1 cache
-  if (!WITHIN(portIndex, PORT_1, SERIAL_PORT_COUNT - 1) || !infoHost.rx_ok[portIndex])
+  if (!WITHIN(portIndex, PORT_1, SERIAL_PORT_COUNT - 1) || dmaL1Data[portIndex].flag == dmaL1Data[portIndex].wIndex)
     return 0;
 
-  DMA_CIRCULAR_BUFFER * dmaL1Data_ptr = &dmaL1Data[portIndex];  // make access to most used variables/attributes faster and also reducing the code
-  uint16_t * rIndex_ptr = &dmaL1Data_ptr->rIndex;               // make access to most used variables/attributes faster and also reducing the code
-  uint16_t * wIndex_ptr = &dmaL1Data_ptr->wIndex;               // make access to most used variables/attributes faster and also reducing the code
+  DMA_CIRCULAR_BUFFER * dmaL1Data_ptr = &dmaL1Data[portIndex];
 
-  while (dmaL1Data_ptr->cache[*rIndex_ptr] == ' ' && *rIndex_ptr != *wIndex_ptr)  // remove leading empty space
+  // make a static access to dynamically changed (by L1 cache's interrupt handler) variables/attributes
+  uint16_t wIndex = dmaL1Data_ptr->wIndex;
+
+  // L1 cache's reading index (not dynamically changed (by L1 cache's interrupt handler) variables/attributes)
+  uint16_t rIndex = dmaL1Data_ptr->rIndex;
+
+  while (dmaL1Data_ptr->cache[rIndex] == ' ' && rIndex != wIndex)  // remove leading empty space, if any
   {
-    *rIndex_ptr = (*rIndex_ptr + 1) % dmaL1Data_ptr->cacheSize;
+    rIndex = (rIndex + 1) % dmaL1Data_ptr->cacheSize;
   }
 
-  if (*rIndex_ptr == *wIndex_ptr)  // if L1 cache is empty
+  for (uint16_t i = 0; i < (bufSize - 1) && rIndex != wIndex; )  // retrieve data until buf is full or L1 cache is empty
   {
-    infoHost.rx_ok[portIndex] = false;  // mark the port as containing no more data
+    buf[i] = dmaL1Data_ptr->cache[rIndex];
+    rIndex = (rIndex + 1) % dmaL1Data_ptr->cacheSize;
 
-    return 0;
+    if (buf[i++] == '\n')  // if data end marker is found
+    {
+      buf[i] = '\0';                                         // end character
+      dmaL1Data_ptr->flag = dmaL1Data_ptr->rIndex = rIndex;  // update queue's custom flag and reading index with rIndex
+
+      return i;  // return the number of bytes stored in buf
+    }
   }
 
-  uint16_t i = 0;
+  // if here, a partial message is present on the L1 cache (message not terminated by "\n").
+  // We temporary skip the message until it is fully received updating also dmaL1Data_ptr->flag to
+  // prevent to read again (multiple times) the same partial message on next function invokation
 
-  while (i < (bufSize - 1) && *rIndex_ptr != *wIndex_ptr)  // retrieve data until buf is full or L1 cache is empty
-  {
-    buf[i] = dmaL1Data_ptr->cache[*rIndex_ptr];
-    *rIndex_ptr = (*rIndex_ptr + 1) % dmaL1Data_ptr->cacheSize;
+  dmaL1Data_ptr->flag = wIndex;  // update queue's custom flag with wIndex
 
-    if (buf[i++] == '\n')  // if data end marker is found, exit from the loop
-      break;
-  }
-
-  buf[i] = 0;  // end character
-
-  return i;  // return the number of bytes stored in buf
+  return 0;  // return the number of bytes stored in buf
 }
 
 #ifdef SERIAL_PORT_2
