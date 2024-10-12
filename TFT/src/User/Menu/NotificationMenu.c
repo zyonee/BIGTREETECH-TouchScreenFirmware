@@ -1,7 +1,7 @@
 #include "NotificationMenu.h"
 #include "includes.h"
 
-void loadNotificationItems(void)
+static void loadNotificationItems(void)
 {
   LISTITEMS * itemlist = getCurListItems();
 
@@ -62,16 +62,20 @@ void menuNotification(void)
 
   menuDrawListPage(&notificationItems);
   loadNotificationItems();
+
   setNotificationHandler(loadNotificationItems);
 
   while (MENU_IS(menuNotification))
   {
     key_num = menuKeyGetValue();
+
     switch (key_num)
     {
       case KEY_ICON_0:
       case KEY_ICON_1:
       case KEY_ICON_2:
+      case KEY_ICON_3:
+      case KEY_ICON_4:
         replayNotification(key_num);
         break;
 
