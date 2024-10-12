@@ -386,7 +386,7 @@
  *
  *   Options: [Marlin Mode: 0, Touch Mode: 1, Blocked Marlin Mode: 2, Blocked Touch Mode: 3]
  */
-#define DEFAULT_MODE 1  // Default: 1
+#define DEFAULT_MODE 0  // Default: 1
 
 /**
  * Serial Always ON
@@ -395,7 +395,7 @@
  * no matter which mode the TFT is in.
  *   Options: [disable: 0, enable: 1]
  */
-#define SERIAL_ALWAYS_ON 0  // Default: 0
+#define SERIAL_ALWAYS_ON 1  // Default: 0
 
 /**
  * Marlin Mode Background & Font Colors
@@ -408,7 +408,7 @@
  *             ORANGE: 8, PURPLE: 9, LIME: 10, BROWN: 11, DARKBLUE: 12, DARKGREEN: 13,    GRAY: 14, DARKGRAY: 15]
  */
 #define MARLIN_BACKGROUND_COLOR 1  // Marlin Mode background color (Default: 1)
-#define MARLIN_FONT_COLOR       0  // Marlin Mode font color (Default: 0)
+#define MARLIN_FONT_COLOR       8  // Marlin Mode font color (Default: 0)
 
 /**
  * Fullscreen Marlin Mode
@@ -418,14 +418,14 @@
  *
  *   Options: [disable: 0, enable: 1]
  */
-#define MARLIN_FULLSCREEN 0  // Default: 0
+#define MARLIN_FULLSCREEN 1  // Default: 0
 
 /**
  * Show Marlin Mode Title
  * Show banner text at the top of the TFT in Marlin Mode.
  *   Options: [disable: 0, enable: 1]
  */
-#define MARLIN_SHOW_TITLE 0  // Default: 0
+#define MARLIN_SHOW_TITLE 1  // Default: 0
 
 /**
  * Marlin Mode Title
@@ -540,9 +540,9 @@
 #define X_MIN_POS   0  // Default: 0
 #define Y_MIN_POS   0  // Default: 0
 #define Z_MIN_POS   0  // Default: 0
-#define X_MAX_POS 235  // Default: 235
-#define Y_MAX_POS 235  // Default: 235
-#define Z_MAX_POS 250  // Default: 250
+#define X_MAX_POS 232  // Default: 235
+#define Y_MAX_POS 208  // Default: 235
+#define Z_MAX_POS 300  // Default: 250
 
 /**
  * X & Y Move Speeds/Feedrates
@@ -1021,7 +1021,7 @@
  * Knob LED color at startup.
  *   Options: [OFF: 0, WHITE: 1, RED: 2, ORANGE: 3, YELLOW: 4, GREEN: 5, BLUE: 6, INDIGO: 7, VIOLET: 8]
  */
-#define KNOB_LED_COLOR 1  // Default: 1
+#define KNOB_LED_COLOR 3  // Default: 1
 
 // Keep the LED state in Marlin Mode
 #define KEEP_KNOB_LED_COLOR_MARLIN_MODE  // Default: uncommented (enabled)
